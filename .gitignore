@@ -1,0 +1,40 @@
+# ===== Dependencies =====
+node_modules/
+**/node_modules/
+
+# ===== Build output =====
+dist/
+build/
+web-build/
+.expo/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ===== Env / secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== Logs =====
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ===== Editor / OS =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+
+# ===== Claude local settings =====
+.claude/settings.local.json
