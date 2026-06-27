@@ -1,0 +1,9 @@
+# Build context là gốc repo — loại bỏ thứ không cần để build nhanh & nhẹ.
+web/node_modules
+web/dist
+**/.git
+**/.venv
+woodblock-preprocessing-pipeline/data/output
+woodblock-preprocessing-pipeline/data/input
+**/__pycache__
+**/*.pyc
