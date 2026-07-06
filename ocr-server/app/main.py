@@ -9,6 +9,9 @@ import base64
 
 from app.preprocess import preprocess_for_ocr, STAGES, NOISE_METHODS, FLIP_DIRECTIONS
 from app.layout import assign_columns
+from app.paddleocr_char_confidence_patch import apply_paddleocr_char_confidence_patch
+
+apply_paddleocr_char_confidence_patch()
 
 app = FastAPI(title="OCR Server - PP-OCRv6 (woodblock)")
 
@@ -32,6 +35,9 @@ V6_DET_REC_KWARGS = dict(
     text_det_box_thresh=0.6,
     text_det_unclip_ratio=1.5,
     text_rec_score_thresh=0.0,
+    # Bật word/char boxes; per-character confidence được lấy từ decoder patch
+    # trong app/paddleocr_char_confidence_patch.py nếu PaddleOCR giữ được conf_list.
+    return_word_box=True,
 )
 
 # Load model 1 LẦN lúc khởi động, không load mỗi request.
@@ -69,6 +75,94 @@ def _bgr_to_data_url(bgr) -> str:
     if not ok:
         return ""
     return "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode("ascii")
+
+
+def _as_plain_list(value):
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    if isinstance(value, tuple):
+        return [_as_plain_list(item) for item in value]
+    if isinstance(value, list):
+        return [_as_plain_list(item) for item in value]
+    return value
+
+
+def normalize_char_confidences(text, confidence, char_confidences=None):
+    # Fallback tạm thời: nếu PaddleOCR không expose được conf_list thật từ
+    # decoder thì lặp line confidence cho từng ký tự để giữ contract API.
+    if char_confidences is None:
+        return [float(confidence)] * len(text)
+
+    values = [float(item) for item in char_confidences]
+    if len(values) > len(text):
+        values = values[:len(text)]
+    if len(values) < len(text):
+        values.extend([float(confidence)] * (len(text) - len(values)))
+    return values
+
+
+def _extract_char_confidences_from_score(score):
+    char_confidences = getattr(score, "char_confidences", None)
+    if char_confidences is None:
+        return None
+    return [float(item) for item in char_confidences]
+
+
+def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxes=None):
+    if not text:
+        return []
+
+    boxes_by_char = {}
+    if (
+        isinstance(rec_words, (list, tuple))
+        and isinstance(rec_word_boxes, (list, tuple))
+        and len(rec_words) == len(rec_word_boxes)
+    ):
+        cursor = 0
+        for word, box in zip(rec_words, rec_word_boxes):
+            word = str(word)
+            if len(word) == 1 and cursor < len(text) and text[cursor] == word:
+                boxes_by_char[cursor] = _as_plain_list(box)
+                cursor += 1
+            else:
+                cursor += len(word)
+
+    if isinstance(rec_chars, (list, tuple)) and len(rec_chars) == len(text):
+        chars = []
+        for idx, item in enumerate(rec_chars):
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                chars.append({
+                    "char": str(item[0]),
+                    "confidence": float(item[1]),
+                    "confidence_source": "rec_chars",
+                    "bbox": boxes_by_char.get(idx),
+                })
+            elif isinstance(item, dict):
+                has_confidence = "confidence" in item and item["confidence"] is not None
+                chars.append({
+                    "char": str(item.get("char", text[idx])),
+                    "confidence": float(item["confidence"]) if has_confidence else None,
+                    "confidence_source": "rec_chars" if has_confidence else None,
+                    "bbox": boxes_by_char.get(idx),
+                })
+            else:
+                chars.append({
+                    "char": text[idx],
+                    "confidence": None,
+                    "confidence_source": None,
+                    "bbox": boxes_by_char.get(idx),
+                })
+        return chars
+
+    return [
+        {
+            "char": ch,
+            "confidence": None,
+            "confidence_source": None,
+            "bbox": boxes_by_char.get(idx),
+        }
+        for idx, ch in enumerate(text)
+    ]
 
 
 @app.post("/preprocess")
@@ -120,6 +214,7 @@ async def run_ocr(
     noise_method: str = Form("bilateral"),
     flip: str = Form("horizontal"),
     drop_score: float = Form(DEFAULT_DROP_SCORE),
+    return_char_confidence: bool = Form(False),
 ):
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(400, "File phải là ảnh")
@@ -149,7 +244,7 @@ async def run_ocr(
 
     # PaddleOCR nhận RGB (giữ nguyên hành vi cũ). bgr ở đây là ảnh thực sự sẽ OCR.
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    result = ocr.predict(rgb)
+    result = ocr.predict(rgb, return_word_box=return_char_confidence)
 
     # Parse record kèm tâm/box-size để gom cột.
     records = []
@@ -157,35 +252,92 @@ async def run_ocr(
         rec_texts = res.get("rec_texts", [])
         rec_scores = res.get("rec_scores", [])
         polys = res.get("rec_polys", res.get("dt_polys", []))
+        rec_chars_all = res.get("rec_chars", [])
+        rec_words_all = res.get("text_word", [])
+        rec_word_boxes_all = res.get("text_word_region", res.get("text_word_boxes", []))
         for i, t in enumerate(rec_texts):
             t = str(t)
-            score = float(rec_scores[i]) if i < len(rec_scores) else 0.0
+            raw_score = rec_scores[i] if i < len(rec_scores) else 0.0
+            score = float(raw_score)
             if not t or score < drop_score:
                 continue
             if i >= len(polys):
                 continue
+
+            rec_chars_for_text = None
+            if isinstance(rec_chars_all, (list, tuple)):
+                if len(rec_chars_all) == len(rec_texts):
+                    rec_chars_for_text = rec_chars_all[i]
+                else:
+                    rec_chars_for_text = rec_chars_all
+
+            rec_words_for_text = rec_words_all[i] if i < len(rec_words_all) else None
+            rec_word_boxes_for_text = (
+                rec_word_boxes_all[i] if i < len(rec_word_boxes_all) else None
+            )
+
+            chars = _parse_chars_with_scores(
+                t,
+                rec_chars_for_text,
+                rec_words=rec_words_for_text,
+                rec_word_boxes=rec_word_boxes_for_text,
+            )
+            decoder_char_confidences = _extract_char_confidences_from_score(raw_score)
+            per_char_confidences = normalize_char_confidences(
+                t,
+                score,
+                decoder_char_confidences,
+            )
+            char_confidence_available = decoder_char_confidences is not None
+            if char_confidence_available:
+                for idx, char in enumerate(chars):
+                    char["confidence"] = per_char_confidences[idx]
+                    char["confidence_source"] = "decoder_conf_list"
+            char_box_available = any(char["bbox"] is not None for char in chars)
             bbox = np.asarray(polys[i], dtype=float).reshape(-1, 2).tolist()
             xs = [p[0] for p in bbox]
             ys = [p[1] for p in bbox]
             width = max(math.dist(bbox[0], bbox[1]), math.dist(bbox[2], bbox[3]), 1.0)
-            records.append({
+            
+            record = {
                 "text": t,
                 "confidence": score,
                 "bbox": bbox,
                 "cx": sum(xs) / len(xs),
                 "cy": sum(ys) / len(ys),
                 "w": width,
-            })
+            }
+            if return_char_confidence:
+                record.update({
+                    "per_char_confidences": per_char_confidences,
+                    "chars": chars,
+                    "char_confidence_available": char_confidence_available,
+                    "char_box_available": char_box_available,
+                })
+            records.append(record)
 
     # Gom cột PHẢI -> TRÁI, trong cột TRÊN -> DƯỚI (quy ước mộc bản).
     columns = assign_columns(records)
 
     # results theo đúng thứ tự đọc (cột phải->trái, mỗi cột trên->dưới).
     ordered = [rec for col in columns for rec in col]
-    results_out = [
-        {"text": r["text"], "confidence": r["confidence"], "bbox": r["bbox"], "column": r["column"]}
-        for r in ordered
-    ]
+    results_out = []
+    for r in ordered:
+        item = {
+            "text": r["text"],
+            "confidence": r["confidence"],
+            "bbox": r["bbox"],
+            "column": r["column"],
+        }
+        if return_char_confidence:
+            item.update({
+                "per_char_confidences": r.get("per_char_confidences", []),
+                "chars": r.get("chars", []),
+                "char_confidence_available": r.get("char_confidence_available", False),
+                "char_box_available": r.get("char_box_available", False),
+            })
+        results_out.append(item)
+        
     columns_out = [
         {
             "index": idx,
