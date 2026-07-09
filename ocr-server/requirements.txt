@@ -1,0 +1,9 @@
+paddlepaddle==3.2.2
+paddleocr==3.7.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+pillow
+numpy
+# Tiền xử lý woodblock (dùng bản headless cho server, không cần GUI)
+opencv-python-headless>=4.8.0

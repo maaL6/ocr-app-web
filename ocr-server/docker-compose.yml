@@ -1,0 +1,15 @@
+services:
+  ocr:
+    build:
+      # Context là thư mục gốc repo để copy được cả woodblock modules.
+      context: ..
+      dockerfile: ocr-server/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Cache model ra ngoài để khỏi tải lại mỗi lần rebuild
+      - paddle_models:/root/.paddlex
+    restart: unless-stopped
+
+volumes:
+  paddle_models:
