@@ -11,16 +11,34 @@ Có thể dừng ở bất kỳ `stage` nào để so sánh chất lượng OCR.
 Ảnh vào/ra đều là BGR (chuẩn OpenCV).
 """
 
+import sys
+from pathlib import Path
+
 import cv2
 
-from app.woodblock_modules import (
-    auto_perspective_correction,
-    deskew,
-    apply_clahe,
-    reduce_noise,
-    mirror_flip,
-    resize_by_width,
-)
+try:
+    from app.woodblock_modules import (
+        auto_perspective_correction,
+        deskew,
+        apply_clahe,
+        reduce_noise,
+        mirror_flip,
+        resize_by_width,
+    )
+except ModuleNotFoundError:
+    # Local uvicorn runs do not execute the Dockerfile COPY that vendors these
+    # modules into app/woodblock_modules, so import them from the sibling repo.
+    repo_root = Path(__file__).resolve().parents[2]
+    module_src = repo_root / "woodblock-preprocessing-pipeline" / "src"
+    sys.path.insert(0, str(module_src))
+    from modules import (
+        auto_perspective_correction,
+        deskew,
+        apply_clahe,
+        reduce_noise,
+        mirror_flip,
+        resize_by_width,
+    )
 
 # Thứ tự các stage; OCR có thể nhận đầu ra ở bất kỳ stage nào.
 STAGES = ["warped", "deskewed", "clahe", "denoised", "flipped", "inverted"]

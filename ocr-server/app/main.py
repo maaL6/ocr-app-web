@@ -108,6 +108,39 @@ def _extract_char_confidences_from_score(score):
     return [float(item) for item in char_confidences]
 
 
+def normalize_char_candidates(text, char_candidates=None):
+    empty_candidates = [[] for _ in text]
+    if char_candidates is None:
+        return empty_candidates
+
+    values = []
+    for candidates in char_candidates:
+        normalized_candidates = []
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            if "char" not in candidate or "confidence" not in candidate:
+                continue
+            normalized_candidates.append({
+                "char": str(candidate["char"]),
+                "confidence": float(candidate["confidence"]),
+            })
+        values.append(normalized_candidates)
+
+    if len(values) > len(text):
+        values = values[:len(text)]
+    if len(values) < len(text):
+        values.extend(empty_candidates[len(values):])
+    return values
+
+
+def _extract_char_candidates_from_score(score):
+    char_candidates = getattr(score, "char_candidates", None)
+    if char_candidates is None:
+        return None
+    return normalize_char_candidates("x" * len(char_candidates), char_candidates)
+
+
 def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxes=None):
     if not text:
         return []
@@ -135,6 +168,8 @@ def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxe
                     "char": str(item[0]),
                     "confidence": float(item[1]),
                     "confidence_source": "rec_chars",
+                    "candidates": [],
+                    "candidate_source": None,
                     "bbox": boxes_by_char.get(idx),
                 })
             elif isinstance(item, dict):
@@ -143,6 +178,8 @@ def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxe
                     "char": str(item.get("char", text[idx])),
                     "confidence": float(item["confidence"]) if has_confidence else None,
                     "confidence_source": "rec_chars" if has_confidence else None,
+                    "candidates": [],
+                    "candidate_source": None,
                     "bbox": boxes_by_char.get(idx),
                 })
             else:
@@ -150,6 +187,8 @@ def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxe
                     "char": text[idx],
                     "confidence": None,
                     "confidence_source": None,
+                    "candidates": [],
+                    "candidate_source": None,
                     "bbox": boxes_by_char.get(idx),
                 })
         return chars
@@ -159,6 +198,8 @@ def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxe
             "char": ch,
             "confidence": None,
             "confidence_source": None,
+            "candidates": [],
+            "candidate_source": None,
             "bbox": boxes_by_char.get(idx),
         }
         for idx, ch in enumerate(text)
@@ -215,6 +256,7 @@ async def run_ocr(
     flip: str = Form("horizontal"),
     drop_score: float = Form(DEFAULT_DROP_SCORE),
     return_char_confidence: bool = Form(False),
+    return_char_candidates: bool = Form(False),
 ):
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(400, "File phải là ảnh")
@@ -244,7 +286,8 @@ async def run_ocr(
 
     # PaddleOCR nhận RGB (giữ nguyên hành vi cũ). bgr ở đây là ảnh thực sự sẽ OCR.
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    result = ocr.predict(rgb, return_word_box=return_char_confidence)
+    return_char_metadata = return_char_confidence or return_char_candidates
+    result = ocr.predict(rgb, return_word_box=return_char_metadata)
 
     # Parse record kèm tâm/box-size để gom cột.
     records = []
@@ -288,11 +331,18 @@ async def run_ocr(
                 score,
                 decoder_char_confidences,
             )
+            decoder_char_candidates = _extract_char_candidates_from_score(raw_score)
+            char_candidates = normalize_char_candidates(t, decoder_char_candidates)
             char_confidence_available = decoder_char_confidences is not None
-            if char_confidence_available:
+            char_candidates_available = decoder_char_candidates is not None
+            if return_char_confidence and char_confidence_available:
                 for idx, char in enumerate(chars):
                     char["confidence"] = per_char_confidences[idx]
                     char["confidence_source"] = "decoder_conf_list"
+            if return_char_candidates and char_candidates_available:
+                for idx, char in enumerate(chars):
+                    char["candidates"] = char_candidates[idx]
+                    char["candidate_source"] = "decoder_topk"
             char_box_available = any(char["bbox"] is not None for char in chars)
             bbox = np.asarray(polys[i], dtype=float).reshape(-1, 2).tolist()
             xs = [p[0] for p in bbox]
@@ -314,6 +364,13 @@ async def run_ocr(
                     "char_confidence_available": char_confidence_available,
                     "char_box_available": char_box_available,
                 })
+            if return_char_candidates:
+                record.update({
+                    "char_candidates": char_candidates,
+                    "char_candidates_available": char_candidates_available,
+                })
+                record.setdefault("chars", chars)
+                record.setdefault("char_box_available", char_box_available)
             records.append(record)
 
     # Gom cột PHẢI -> TRÁI, trong cột TRÊN -> DƯỚI (quy ước mộc bản).
@@ -336,6 +393,13 @@ async def run_ocr(
                 "char_confidence_available": r.get("char_confidence_available", False),
                 "char_box_available": r.get("char_box_available", False),
             })
+        if return_char_candidates:
+            item.update({
+                "char_candidates": r.get("char_candidates", []),
+                "char_candidates_available": r.get("char_candidates_available", False),
+            })
+            item.setdefault("chars", r.get("chars", []))
+            item.setdefault("char_box_available", r.get("char_box_available", False))
         results_out.append(item)
         
     columns_out = [

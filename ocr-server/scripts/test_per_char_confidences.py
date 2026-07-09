@@ -21,6 +21,9 @@ def _multipart_body(image_path: Path):
         f"\r\n--{boundary}\r\n".encode("utf-8"),
         'Content-Disposition: form-data; name="return_char_confidence"\r\n\r\n'.encode("utf-8"),
         'true'.encode("utf-8"),
+        f"\r\n--{boundary}\r\n".encode("utf-8"),
+        'Content-Disposition: form-data; name="return_char_candidates"\r\n\r\n'.encode("utf-8"),
+        'true'.encode("utf-8"),
         f"\r\n--{boundary}--\r\n".encode("utf-8"),
     ]
     return boundary, b"".join(parts)
@@ -46,12 +49,16 @@ def main():
     for item in payload.get("results", []):
         text = item["text"]
         per_char_confidences = item["per_char_confidences"]
+        char_candidates = item.get("char_candidates", [])
         print("text:", text)
         print("confidence:", item["confidence"])
         print("per_char_confidences:", per_char_confidences)
+        print("char_candidates:", char_candidates)
         print("len(text):", len(text))
         print("len(per_char_confidences):", len(per_char_confidences))
+        print("len(char_candidates):", len(char_candidates))
         assert len(text) == len(per_char_confidences)
+        assert len(text) == len(char_candidates)
 
 
 if __name__ == "__main__":
