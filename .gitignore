@@ -38,3 +38,7 @@ Thumbs.db
 
 # ===== Claude local settings =====
 .claude/settings.local.json
+
+# ===== OCR Model Weights =====
+ocr-server/ppocrv6_medium_finetuned_precision/
+
