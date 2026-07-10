@@ -7,13 +7,15 @@ import numpy as np
 import cv2
 import base64
 
+from app.routers.auth import router as auth_router
 from app.preprocess import preprocess_for_ocr, STAGES, NOISE_METHODS, FLIP_DIRECTIONS
 from app.layout import assign_columns
 from app.paddleocr_char_confidence_patch import apply_paddleocr_char_confidence_patch
 
-apply_paddleocr_char_confidence_patch()
-
 app = FastAPI(title="OCR Server - PP-OCRv6 (woodblock)")
+app.include_router(auth_router)
+
+apply_paddleocr_char_confidence_patch()
 
 # Cho phép web frontend (chạy ở cổng khác) gọi API từ trình duyệt.
 # Khi deploy thật nên thay "*" bằng domain cụ thể.
