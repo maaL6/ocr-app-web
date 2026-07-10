@@ -45,12 +45,37 @@ V6_DET_REC_KWARGS = dict(
 # Load model 1 LẦN lúc khởi động, không load mỗi request.
 # lang="ch": model PP-OCRv6_medium hợp nhất (phồn thể + giản thể + pinyin/Anh/Nhật).
 # Muốn model chuyên phồn thể (PP-OCRv3 cũ) thì đổi thành "chinese_cht".
+import os
+import paddleocr
+
+DEFAULT_REC_DIR = "ppocrv6_medium_finetuned_precision/inference"
+DEFAULT_DICT_PATH = "ppocrv6_medium_finetuned_precision/dict.txt"
+
+rec_model_dir = os.getenv("REC_MODEL_DIR", DEFAULT_REC_DIR)
+rec_char_dict_path = os.getenv("REC_CHAR_DICT_PATH", DEFAULT_DICT_PATH)
+
 _base_kwargs = dict(
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
     use_textline_orientation=False,
     lang="ch",
 )
+
+is_paddleocr_v3 = hasattr(paddleocr, "__version__") and paddleocr.__version__.startswith("3.")
+
+if os.path.exists(rec_model_dir):
+    print(f"[INFO] Tim thay model finetune tai '{rec_model_dir}'. Dang nap model...")
+    _base_kwargs["rec_model_dir"] = rec_model_dir
+    if not is_paddleocr_v3:
+        if os.path.exists(rec_char_dict_path):
+            _base_kwargs["rec_char_dict_path"] = rec_char_dict_path
+        else:
+            print(f"[WARN] Khong tim thay dict.txt tai '{rec_char_dict_path}'.")
+    else:
+        print("[INFO] PaddleOCR phien ban 3.x: Tu dien se duoc tu dong nap tu inference.yml trong thu muc model.")
+else:
+    print(f"[INFO] Khong tim thay model finetune tai '{rec_model_dir}'. Su dung model mac dinh cua PaddleOCR.")
+
 try:
     ocr = PaddleOCR(**_base_kwargs, **V6_DET_REC_KWARGS)
 except Exception as e:  # nếu phiên bản PaddleOCR không nhận param ngưỡng -> chạy bản tối thiểu

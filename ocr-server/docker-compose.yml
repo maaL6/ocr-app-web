@@ -9,6 +9,8 @@ services:
     volumes:
       # Cache model ra ngoài để khỏi tải lại mỗi lần rebuild
       - paddle_models:/root/.paddlex
+      # Gắn folder model finetuned từ host vào container dưới dạng chỉ đọc
+      - ./ppocrv6_medium_finetuned_precision:/code/ppocrv6_medium_finetuned_precision:ro
     restart: unless-stopped
 
 volumes:

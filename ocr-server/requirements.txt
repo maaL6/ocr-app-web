@@ -7,3 +7,8 @@ pillow
 numpy
 # Tiền xử lý woodblock (dùng bản headless cho server, không cần GUI)
 opencv-python-headless>=4.8.0
+sqlalchemy
+psycopg2-binary
+python-jose[cryptography]
+email-validator
+
