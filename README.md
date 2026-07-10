@@ -9,7 +9,6 @@
 | `ocr-server/` | API OCR: tiền xử lý ảnh + nhận dạng (PP-OCRv6) + phân cột | FastAPI, PaddleOCR, OpenCV |
 | `web/` | Giao diện web upload ảnh và xem kết quả | React + Vite |
 | `mobile/` | App di động | Expo / React Native |
-| `woodblock-preprocessing-pipeline/` | Pipeline tiền xử lý ảnh mộc bản (xem README riêng trong thư mục) | Python |
 
 ## Yêu cầu môi trường
 
@@ -141,21 +140,6 @@ VITE_API_BASE=http://localhost:8000
 
 ---
 
-## 4. Pipeline tiền xử lý mộc bản (`woodblock-preprocessing-pipeline/`)
-
-Pipeline Python 7 bước (corners → warp → deskew → clahe → denoise → flipped → inverted) để xử lý ảnh trước OCR.
-Hướng dẫn chi tiết nằm trong [`woodblock-preprocessing-pipeline/README.md`](woodblock-preprocessing-pipeline/README.md).
-
-Chạy nhanh:
-```bash
-cd woodblock-preprocessing-pipeline
-python -m venv .venv && .venv\Scripts\activate   # Windows
-pip install -r requirements.txt
-# đặt ảnh vào data/input/ rồi:
-python src/pipeline_7_steps.py
-```
-
----
 
 ## Sự cố thường gặp
 
