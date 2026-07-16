@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Google Login (Local)</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 30px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      background: #ffffff;
+    }
+    h2 { color: #1a73e8; margin-top: 0; }
+    p { color: #5f6368; font-size: 14px; line-height: 1.5; }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Kiểm thử Đăng nhập Google</h2>
+  <p>Nhấp vào nút dưới đây để chọn tài khoản Google. Client ID của bạn đã được cấu hình sẵn trong trang này.</p>
+  
+  <!-- Nút Google Sign-In -->
+  <div id="g_id_onload"
+       data-client_id="316323533715-u77bsr5qbo7p6b42g161cvcvlojfqbm9.apps.googleusercontent.com"
+       data-context="signin"
+       data-ux_mode="popup"
+       data-callback="handleCredentialResponse"
+       data-auto_prompt="false">
+  </div>
+
+  <div class="g_id_signin"
+       data-type="standard"
+       data-shape="rectangular"
+       data-theme="outline"
+       data-text="signin_with"
+       data-size="large"
+       data-logo_alignment="left">
+  </div>
+
+  <div id="result">Kết quả phản hồi từ Server sẽ hiển thị ở đây...</div>
+
+  <script>
+    async function handleCredentialResponse(response) {
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerText = "Đang gửi id_token đến API http://localhost:8000/auth/google ...";
+      
+      try {
+        const res = await fetch("http://localhost:8000/auth/google", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ id_token: response.credential })
+        });
+        
+        const data = await res.json();
+        resultDiv.innerText = "Status: " + res.status + "\n\n" + JSON.stringify(data, null, 2);
+      } catch (err) {
+        resultDiv.innerText = "Lỗi kết nối tới Server API: " + err.message + "\nHãy chắc chắn server của bạn đã khởi động và cho phép CORS.";
+      }
+    }
+  </script>
+</body>
+</html>

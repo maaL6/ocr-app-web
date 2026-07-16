@@ -13,7 +13,9 @@ class User(Base):
 
     fullname = Column(String, nullable=False)
 
-    password_hash = Column(String, nullable=False)
+    password_hash = Column(String, nullable=True)
+
+    google_id = Column(String, unique=True, index=True, nullable=True)
 
     phone_number = Column(String)
 

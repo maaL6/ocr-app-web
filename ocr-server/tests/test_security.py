@@ -75,7 +75,14 @@ def test_profile_update_requires_auth(monkeypatch):
     def override_get_db():
         yield object()
 
+    def mock_update_profile(db, user_id, data):
+        user = DummyUser()
+        user.fullname = data.fullname
+        user.phone_number = data.phone_number
+        return user
+
     monkeypatch.setattr("app.routers.auth.get_user_by_id", lambda db, user_id: DummyUser())
+    monkeypatch.setattr("app.routers.auth.update_user_profile", mock_update_profile)
     monkeypatch.setattr("app.routers.auth.verify_access_token", lambda token: {"sub": "1"})
 
     test_app.dependency_overrides[get_db] = override_get_db
@@ -92,3 +99,138 @@ def test_profile_update_requires_auth(monkeypatch):
     assert body["user"]["phone_number"] == "0999999999"
 
     test_app.dependency_overrides.clear()
+
+
+def test_google_login_new_user(monkeypatch):
+    test_app = FastAPI()
+    test_app.include_router(auth_router)
+
+    class DummyUser:
+        id = 123
+        email = "googleuser@example.com"
+        fullname = "Google User"
+        phone_number = None
+        google_id = "google-sub-123"
+
+    class MockDB:
+        def commit(self):
+            pass
+        def refresh(self, obj):
+            pass
+
+    def override_get_db():
+        yield MockDB()
+
+    # Mock the verification and CRUD operations
+    monkeypatch.setattr(
+        "app.routers.auth.verify_google_token",
+        lambda token: {
+            "sub": "google-sub-123",
+            "email": "googleuser@example.com",
+            "name": "Google User",
+            "iss": "accounts.google.com"
+        }
+    )
+    monkeypatch.setattr(
+        "app.routers.auth.get_user_by_google_id",
+        lambda db, google_id: None
+    )
+    monkeypatch.setattr(
+        "app.routers.auth.get_user_by_email",
+        lambda db, email: None
+    )
+    monkeypatch.setattr(
+        "app.routers.auth.create_user_from_google",
+        lambda db, google_id, email, fullname: DummyUser()
+    )
+
+    test_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(test_app) as client:
+        response = client.post(
+            "/auth/google",
+            json={"id_token": "mock-valid-google-token"}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["access_token"]
+    assert body["token_type"] == "bearer"
+    assert body["user"]["google_id"] == "google-sub-123"
+    assert body["user"]["email"] == "googleuser@example.com"
+
+    test_app.dependency_overrides.clear()
+
+
+def test_google_login_existing_user(monkeypatch):
+    test_app = FastAPI()
+    test_app.include_router(auth_router)
+
+    class DummyUser:
+        id = 456
+        email = "existinguser@example.com"
+        fullname = "Existing User"
+        phone_number = "0987654321"
+        google_id = None  # initially None, will be set by endpoint
+
+    class MockDB:
+        def commit(self):
+            pass
+        def refresh(self, obj):
+            pass
+
+    def override_get_db():
+        yield MockDB()
+
+    dummy_user = DummyUser()
+
+    monkeypatch.setattr(
+        "app.routers.auth.verify_google_token",
+        lambda token: {
+            "sub": "google-sub-456",
+            "email": "existinguser@example.com",
+            "name": "Existing User",
+            "iss": "accounts.google.com"
+        }
+    )
+    monkeypatch.setattr(
+        "app.routers.auth.get_user_by_google_id",
+        lambda db, google_id: None
+    )
+    monkeypatch.setattr(
+        "app.routers.auth.get_user_by_email",
+        lambda db, email: dummy_user
+    )
+
+    test_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(test_app) as client:
+        response = client.post(
+            "/auth/google",
+            json={"id_token": "mock-valid-google-token"}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["access_token"]
+    assert dummy_user.google_id == "google-sub-456"
+
+    test_app.dependency_overrides.clear()
+
+
+def test_google_login_invalid_token(monkeypatch):
+    test_app = FastAPI()
+    test_app.include_router(auth_router)
+
+    def mock_verify_fail(token):
+        raise ValueError("Google token không hợp lệ")
+
+    monkeypatch.setattr("app.routers.auth.verify_google_token", mock_verify_fail)
+
+    with TestClient(test_app) as client:
+        response = client.post(
+            "/auth/google",
+            json={"id_token": "invalid-token"}
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Google token không hợp lệ"
+
