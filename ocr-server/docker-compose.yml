@@ -13,6 +13,7 @@ services:
       DB_USER: ocr_user
       DB_PASSWORD: ocr_password
       DB_NAME: ocr
+      UPLOAD_ROOT: /code/data/uploads
     depends_on:
       - postgres
     volumes:
@@ -20,6 +21,8 @@ services:
       - paddle_models:/root/.paddlex
       # Gắn folder model finetuned từ host vào container dưới dạng chỉ đọc
       - ./ppocrv6_medium_finetuned_precision:/code/ppocrv6_medium_finetuned_precision:ro
+      # Lưu ảnh lịch sử bên ngoài container để rebuild không làm mất dữ liệu.
+      - ./data/uploads:/code/data/uploads
     restart: unless-stopped
 
   postgres:

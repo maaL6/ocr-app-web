@@ -42,3 +42,8 @@ Thumbs.db
 # ===== OCR Model Weights =====
 ocr-server/ppocrv6_medium_finetuned_precision/
 
+ocr-server/best_model/
+ocr-server/inference/
+ocr-server/*.zip
+ocr-server/*.pdopt
+ocr-server/*.pdparams

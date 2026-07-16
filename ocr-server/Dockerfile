@@ -13,6 +13,8 @@ COPY ocr-server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ocr-server/app/ ./app/
+COPY ocr-server/alembic.ini ./alembic.ini
+COPY ocr-server/migrations/ ./migrations/
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
