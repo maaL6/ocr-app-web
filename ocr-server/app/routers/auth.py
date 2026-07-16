@@ -2,10 +2,22 @@ from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 
 from app.schemas.user import UserProfileUpdate, UserRegister
-from app.schemas.auth import UserLogin
+from app.schemas.auth import UserLogin, GoogleLogin
 from app.dependencies import get_db
-from app.crud.user import create_user, get_user_by_email, get_user_by_id, update_user_profile
-from app.security import create_access_token, verify_access_token, verify_password
+from app.crud.user import (
+    create_user,
+    create_user_from_google,
+    get_user_by_email,
+    get_user_by_google_id,
+    get_user_by_id,
+    update_user_profile,
+)
+from app.security import (
+    create_access_token,
+    verify_access_token,
+    verify_google_token,
+    verify_password,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -75,6 +87,64 @@ def login(
             "email": user.email,
             "fullname": user.fullname,
             "phone_number": user.phone_number,
+        },
+    }
+
+
+@router.post("/google")
+def google_login(
+    payload: GoogleLogin,
+    db: Session = Depends(get_db),
+):
+    # 1. Verify Google ID token
+    try:
+        id_info = verify_google_token(payload.id_token)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        )
+
+    google_id = id_info.get("sub")
+    email = id_info.get("email", "")
+    fullname = id_info.get("name", "")
+
+    if not google_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google token không chứa sub",
+        )
+
+    # 2. Tìm user theo google_id
+    user = get_user_by_google_id(db, google_id)
+
+    if not user:
+        # 3. Kiểm tra email đã tồn tại chưa — nếu có thì link google_id
+        existing = get_user_by_email(db, email) if email else None
+        if existing:
+            existing.google_id = google_id
+            db.commit()
+            db.refresh(existing)
+            user = existing
+        else:
+            # 4. Tạo user mới từ Google
+            user = create_user_from_google(db, google_id, email, fullname)
+
+    # 5. Tạo JWT token
+    access_token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "fullname": user.fullname}
+    )
+
+    return {
+        "message": "Đăng nhập Google thành công",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "fullname": user.fullname,
+            "phone_number": user.phone_number,
+            "google_id": user.google_id,
         },
     }
 
