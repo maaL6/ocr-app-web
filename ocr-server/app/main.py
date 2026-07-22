@@ -87,6 +87,15 @@ except Exception as e:  # nếu phiên bản PaddleOCR không nhận param ngư�
 # Lọc box có score thấp hơn ngưỡng này sau khi nhận dạng (giống drop_score của v6_current).
 DEFAULT_DROP_SCORE = 0.30
 
+bert_processor = None
+try:
+    from app.bert_postprocess import OCRPostProcessor
+    print("[INFO] Nạp model SikuBERT cho hậu xử lý...")
+    bert_processor = OCRPostProcessor(mode="candidate_reranking")
+    print("[INFO] Đã nạp thành công SikuBERT post-processor!")
+except Exception as e:
+    print(f"[WARN] Không thể nạp SikuBERT post-processor ({e}). Tính năng hậu xử lý sẽ ở chế độ fallback.")
+
 
 @app.get("/health")
 def health():
@@ -450,3 +459,56 @@ async def run_ocr(
         "ocr_image": _bgr_to_data_url(bgr),
         "preprocess": {"applied": preprocess, **(pre_meta or {})},
     }
+
+
+@app.post("/ocr-postprocess")
+async def run_ocr_postprocess(
+    file: UploadFile = File(...),
+    preprocess: bool = Form(True),
+    stage: str = Form("flipped"),
+    resize_width: int = Form(1600),
+    canny_low: int = Form(30),
+    canny_high: int = Form(120),
+    deskew_range: float = Form(15.0),
+    clahe_clip: float = Form(3.0),
+    clahe_tile: int = Form(8),
+    noise_method: str = Form("bilateral"),
+    flip: str = Form("horizontal"),
+    drop_score: float = Form(DEFAULT_DROP_SCORE),
+):
+    """
+    Chạy nhận dạng OCR với đầy đủ tiền xử lý (Preprocessing),
+    sau đó thực hiện Hậu xử lý sửa lỗi chính tả Hán Nôm bằng SikuBERT.
+    """
+    ocr_response = await run_ocr(
+        file=file,
+        preprocess=preprocess,
+        stage=stage,
+        resize_width=resize_width,
+        canny_low=canny_low,
+        canny_high=canny_high,
+        deskew_range=deskew_range,
+        clahe_clip=clahe_clip,
+        clahe_tile=clahe_tile,
+        noise_method=noise_method,
+        flip=flip,
+        drop_score=drop_score,
+        return_char_confidence=True,
+        return_char_candidates=True,
+    )
+
+    if bert_processor is None:
+        print("[WARN] SikuBERT processor chưa được nạp. Trả về kết quả OCR gốc.")
+        return ocr_response
+
+    try:
+        processed_raw = bert_processor.process(ocr_response)
+        clean_result = bert_processor.to_ocr_schema(processed_raw)
+
+        # Giữ lại các metadata tiền xử lý & ảnh OCR để Web vẽ overlay
+        clean_result["ocr_image"] = ocr_response.get("ocr_image")
+        clean_result["preprocess"] = ocr_response.get("preprocess")
+        return clean_result
+    except Exception as e:
+        print(f"[WARN] Hậu xử lý SikuBERT gặp lỗi ({e}). Tự động fallback về kết quả OCR gốc.")
+        return ocr_response
