@@ -516,5 +516,5 @@ async def run_ocr_postprocess(
     except Exception as e:
         print(f"[WARN] Hậu xử lý SikuBERT gặp lỗi ({e}). Tự động fallback về kết quả OCR gốc.")
         response.headers["X-Postprocess-Status"] = "fallback"
-        response.headers["X-Postprocess-Fallback-Reason"] = f"error: {str(e)}"
+        response.headers["X-Postprocess-Fallback-Reason"] = "processing_error"
         return ocr_response
