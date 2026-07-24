@@ -1,6 +1,6 @@
 import math
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 import numpy as np
@@ -463,6 +463,7 @@ async def run_ocr(
 
 @app.post("/ocr-postprocess")
 async def run_ocr_postprocess(
+    response: Response,
     file: UploadFile = File(...),
     preprocess: bool = Form(True),
     stage: str = Form("flipped"),
@@ -499,6 +500,8 @@ async def run_ocr_postprocess(
 
     if bert_processor is None:
         print("[WARN] SikuBERT processor chưa được nạp. Trả về kết quả OCR gốc.")
+        response.headers["X-Postprocess-Status"] = "fallback"
+        response.headers["X-Postprocess-Fallback-Reason"] = "processor_not_loaded"
         return ocr_response
 
     try:
@@ -508,7 +511,10 @@ async def run_ocr_postprocess(
         # Giữ lại các metadata tiền xử lý & ảnh OCR để Web vẽ overlay
         clean_result["ocr_image"] = ocr_response.get("ocr_image")
         clean_result["preprocess"] = ocr_response.get("preprocess")
+        response.headers["X-Postprocess-Status"] = "success"
         return clean_result
     except Exception as e:
         print(f"[WARN] Hậu xử lý SikuBERT gặp lỗi ({e}). Tự động fallback về kết quả OCR gốc.")
+        response.headers["X-Postprocess-Status"] = "fallback"
+        response.headers["X-Postprocess-Fallback-Reason"] = f"error: {str(e)}"
         return ocr_response
