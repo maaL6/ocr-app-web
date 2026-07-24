@@ -1,9 +1,10 @@
 import argparse
 import json
 import mimetypes
+import sys
 import uuid
 from pathlib import Path
-from urllib import request
+from urllib import request, error
 
 
 def _multipart_body(image_path: Path, preprocess: bool = True):
@@ -35,7 +36,9 @@ def send_ocr_request(url: str, image_path: Path, preprocess: bool = True):
         method="POST",
     )
     with request.urlopen(req, timeout=300) as res:
-        return json.loads(res.read().decode("utf-8"))
+        payload = json.loads(res.read().decode("utf-8"))
+        headers = dict(res.headers)
+        return payload, headers
 
 
 def main():
@@ -46,7 +49,9 @@ def main():
 
     if not args.image.exists():
         print(f"Error: Image path '{args.image}' does not exist.")
-        return
+        sys.exit(1)
+
+    errors = []
 
     print("==================================================")
     print(f"Testing image: {args.image}")
@@ -55,25 +60,72 @@ def main():
     # 1. Test raw /ocr endpoint
     raw_url = f"{args.host}/ocr"
     print(f"\n[1] Calling RAW OCR: {raw_url}")
+    raw_res = None
     try:
-        raw_res = send_ocr_request(raw_url, args.image)
-        print(f"-> Full text (RAW OCR):\n{raw_res.get('full_text', '')}")
+        raw_res, raw_headers = send_ocr_request(raw_url, args.image)
+        if "results" not in raw_res or "full_text" not in raw_res:
+            err = f"RAW OCR response missing required keys: {list(raw_res.keys())}"
+            print(f"  [ERROR] {err}")
+            errors.append(err)
+        else:
+            print(f"-> Full text (RAW OCR):\n{raw_res.get('full_text', '')}")
     except Exception as e:
-        print(f"Error calling /ocr: {e}")
+        err = f"Failed to call RAW OCR endpoint {raw_url}: {e}"
+        print(f"  [ERROR] {err}")
+        errors.append(err)
 
     # 2. Test /ocr-postprocess endpoint
     post_url = f"{args.host}/ocr-postprocess"
     print(f"\n[2] Calling OCR + SikuBERT Post-processing: {post_url}")
     try:
-        post_res = send_ocr_request(post_url, args.image)
-        print(f"-> Full text (POST-PROCESSED):\n{post_res.get('full_text', '')}")
-        print(f"-> Preprocess applied: {post_res.get('preprocess', {}).get('applied')}")
+        post_res, post_headers = send_ocr_request(post_url, args.image)
+        status_header = post_headers.get("X-Postprocess-Status", "unknown")
+        fallback_reason = post_headers.get("X-Postprocess-Fallback-Reason")
+
+        print(f"-> Postprocess Status Header: {status_header}")
+        if fallback_reason:
+            print(f"-> Fallback Reason Header: {fallback_reason}")
+
+        if status_header == "fallback":
+            err = f"/ocr-postprocess executed in fallback mode (reason: {fallback_reason})"
+            print(f"  [WARN/ERROR] {err}")
+            errors.append(err)
+
+        if "results" not in post_res or "full_text" not in post_res:
+            err = f"POST-PROCESSED response missing required keys: {list(post_res.keys())}"
+            print(f"  [ERROR] {err}")
+            errors.append(err)
+        else:
+            print(f"-> Full text (POST-PROCESSED):\n{post_res.get('full_text', '')}")
+            print(f"-> Preprocess applied: {post_res.get('preprocess', {}).get('applied')}")
+
+        # Check schema consistency with RAW OCR
+        if raw_res and post_res:
+            raw_root_keys = sorted(raw_res.keys())
+            post_root_keys = sorted(post_res.keys())
+            if raw_root_keys != post_root_keys:
+                err = f"Root schema mismatch! RAW: {raw_root_keys} vs POST: {post_root_keys}"
+                print(f"  [ERROR] {err}")
+                errors.append(err)
+            else:
+                print("-> Schema check passed: Root response keys match RAW OCR.")
+
     except Exception as e:
-        print(f"Error calling /ocr-postprocess: {e}")
+        err = f"Failed to call POST-PROCESSED endpoint {post_url}: {e}"
+        print(f"  [ERROR] {err}")
+        errors.append(err)
 
     print("\n==================================================")
-    print("Test completed successfully!")
-    print("==================================================")
+    if errors:
+        print("[FAIL] Test failed with the following error(s):")
+        for err in errors:
+            print(f"  - {err}")
+        print("==================================================")
+        sys.exit(1)
+    else:
+        print("[PASS] All tests completed successfully!")
+        print("==================================================")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
