@@ -36,8 +36,8 @@ yarn-error.*
 Thumbs.db
 *.tsbuildinfo
 
-# ===== Claude local settings =====
-.claude/settings.local.json
+# ===== Claude / AI tooling (config máy cá nhân) =====
+.claude/
 
 # ===== OCR Model Weights =====
 ocr-server/ppocrv6_medium_finetuned_precision/
