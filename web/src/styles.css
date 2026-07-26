@@ -367,6 +367,11 @@ button {
   cursor: not-allowed;
 }
 
+/* .btn dùng cho cả thẻ <a> (vd. nút Tải app) */
+a.btn {
+  text-decoration: none;
+}
+
 .btn-primary {
   background: var(--seal);
   color: var(--on-seal);
