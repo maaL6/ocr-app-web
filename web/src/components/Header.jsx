@@ -58,7 +58,7 @@ export default function Header({
       <div className="header-actions">
         <a
           className="btn btn-ghost btn-app-download"
-          href="https://drive.google.com/file/d/1UASlxbXXzQ9jsxsAo_zL2qFHkvg0ouqG/view?usp=sharing"
+          href="https://drive.google.com/uc?export=download&id=1UASlxbXXzQ9jsxsAo_zL2qFHkvg0ouqG"
           target="_blank"
           rel="noopener noreferrer"
           title="Tải ứng dụng di động Mộc Bản OCR (qua Google Drive)"
