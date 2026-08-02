@@ -87,6 +87,8 @@ def login(
             "email": user.email,
             "fullname": user.fullname,
             "phone_number": user.phone_number,
+            "avatar_url": user.avatar_url,
+            "is_locked": user.is_locked,
         },
     }
 
@@ -145,6 +147,8 @@ def google_login(
             "fullname": user.fullname,
             "phone_number": user.phone_number,
             "google_id": user.google_id,
+            "avatar_url": user.avatar_url,
+            "is_locked": user.is_locked,
         },
     }
 
@@ -155,7 +159,7 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user_from_token),
 ):
-    if payload.fullname is None and payload.phone_number is None:
+    if payload.fullname is None and payload.phone_number is None and payload.avatar_url is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có dữ liệu để cập nhật")
 
     user = update_user_profile(db, current_user.id, payload)
@@ -167,5 +171,6 @@ def update_profile(
             "email": user.email,
             "fullname": user.fullname,
             "phone_number": user.phone_number,
+            "avatar_url": user.avatar_url,
         },
     }

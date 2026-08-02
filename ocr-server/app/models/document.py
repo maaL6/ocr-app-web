@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
@@ -28,3 +28,9 @@ class Document(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    full_text = Column(Text)
+
+    original_image_url = Column(Text)
+
+    ocr_image_url = Column(Text)

@@ -43,6 +43,17 @@ def verify_access_token(token: str) -> dict:
         raise ValueError("Token không hợp lệ") from exc
 
 
+def create_admin_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create JWT token for admin with role=admin."""
+    payload = data.copy()
+    payload["role"] = "admin"
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    payload.update({"exp": expire})
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
 def verify_google_token(token: str) -> dict:
     """Verify Google ID token and return the decoded info."""
     try:

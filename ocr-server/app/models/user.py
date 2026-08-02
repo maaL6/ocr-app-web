@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -20,3 +20,13 @@ class User(Base):
     phone_number = Column(String)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    is_locked = Column(Boolean, default=False, nullable=False)
+
+    last_seen = Column(DateTime)
+
+    is_online = Column(Boolean, default=False, nullable=False)
+
+    avatar_url = Column(Text)
+
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

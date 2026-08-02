@@ -9,13 +9,17 @@ import base64
 
 from app.routers.auth import router as auth_router
 from app.routers.documents import router as documents_router
+from app.routers.admin import router as admin_router
 from app.preprocess import preprocess_for_ocr, STAGES, NOISE_METHODS, FLIP_DIRECTIONS
 from app.layout import assign_columns
 from app.paddleocr_char_confidence_patch import apply_paddleocr_char_confidence_patch
 
 app = FastAPI(title="OCR Server - PP-OCRv6 (woodblock)")
-app.include_router(auth_router)
-app.include_router(documents_router)
+# All routers are served under the /api prefix to match the frontend
+# (frontend uses https://ocr.mocban.org/api/...)
+app.include_router(auth_router, prefix="/api")
+app.include_router(documents_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 apply_paddleocr_char_confidence_patch()
 

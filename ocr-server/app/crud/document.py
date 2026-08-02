@@ -18,6 +18,7 @@ def create_document(
         image_path=image_path,
         ocr_image_path=ocr_image_path,
         ocr_result=ocr_result,
+        full_text=ocr_result.get("full_text", "") if isinstance(ocr_result, dict) else "",
     )
     db.add(document)
     db.commit()
@@ -53,6 +54,7 @@ def update_document(
         document.title = title
     if ocr_result is not None:
         document.ocr_result = ocr_result
+        document.full_text = ocr_result.get("full_text", "") if isinstance(ocr_result, dict) else ""
     db.commit()
     db.refresh(document)
     return document
