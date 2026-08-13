@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Modal, Spinner } from "../ui.jsx";
+import { useI18n } from "../i18n.jsx";
 
 export default function SettingsModal({ apiBase, health, checking, onChangeApiBase, onCheck, onClose }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(apiBase);
 
   const apply = () => {
@@ -11,9 +13,9 @@ export default function SettingsModal({ apiBase, health, checking, onChangeApiBa
   };
 
   return (
-    <Modal title="Cài đặt máy chủ" onClose={onClose} width={460}>
+    <Modal title={t("serverSettings", "Cài đặt máy chủ")} onClose={onClose} width={460}>
       <div className="form-group">
-        <label htmlFor="api-url">Địa chỉ máy chủ OCR (API)</label>
+        <label htmlFor="api-url">{t("serverAddress", "Địa chỉ máy chủ OCR (API)")}</label>
         <div className="settings-row">
           <input
             id="api-url"
@@ -25,22 +27,21 @@ export default function SettingsModal({ apiBase, health, checking, onChangeApiBa
             onKeyDown={(e) => e.key === "Enter" && apply()}
           />
           <button className="btn btn-primary" onClick={apply} disabled={checking}>
-            {checking ? <Spinner size={14} /> : "Kiểm tra"}
+            {checking ? <Spinner size={14} /> : t("check", "Kiểm tra")}
           </button>
         </div>
       </div>
 
       <div className={`settings-status settings-status-${health || "unknown"}`}>
         <span className={`health-dot health-${health || "unknown"}`} />
-        {health === "ok" && "Máy chủ hoạt động bình thường."}
-        {health === "down" && "Không kết nối được máy chủ — kiểm tra Docker đã chạy chưa."}
-        {health === "checking" && "Đang kiểm tra kết nối…"}
-        {!health && "Chưa kiểm tra."}
+        {health === "ok" && t("serverOk", "Máy chủ hoạt động bình thường.")}
+        {health === "down" && t("serverDown", "Không kết nối được máy chủ — kiểm tra Docker đã chạy chưa.")}
+        {health === "checking" && t("checkingConnection", "Đang kiểm tra kết nối…")}
+        {!health && t("notChecked", "Chưa kiểm tra.")}
       </div>
 
       <p className="settings-hint">
-        Giá trị mặc định lấy từ biến môi trường <code>VITE_API_BASE</code> khi build. Thay đổi ở đây
-        chỉ áp dụng cho phiên làm việc hiện tại.
+        {t("settingsHint", "Giá trị mặc định lấy từ biến môi trường VITE_API_BASE khi build. Thay đổi ở đây chỉ áp dụng cho phiên làm việc hiện tại.")}
       </p>
     </Modal>
   );

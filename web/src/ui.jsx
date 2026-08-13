@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import { useI18n } from "./i18n.jsx";
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // --- Khung modal dùng chung: focus trap, đóng bằng Esc / click nền ---
 export function Modal({ title, onClose, children, width = 440 }) {
+  const { t } = useI18n();
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function Modal({ title, onClose, children, width = 440 }) {
       >
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Đóng">
+          <button className="modal-close" onClick={onClose} aria-label={t("close", "Đóng")}>
             ✕
           </button>
         </div>
@@ -96,6 +98,7 @@ export function Segmented({ options, value, onChange, small }) {
 // Container aria-live luôn được render (kể cả khi rỗng) để screen reader
 // nhận biết nội dung mới thêm vào; CSS đặt pointer-events: none cho vùng rỗng.
 export function ToastStack({ toasts, onDismiss }) {
+  const { t } = useI18n();
   return (
     <div className="toast-stack" aria-live="polite" role="status">
       {toasts.map((t) => (
@@ -107,7 +110,7 @@ export function ToastStack({ toasts, onDismiss }) {
             <div className="toast-title">{t.title}</div>
             {t.sub && <div className="toast-sub">{t.sub}</div>}
           </div>
-          <button className="toast-close" onClick={() => onDismiss(t.id)} aria-label="Đóng thông báo">
+          <button className="toast-close" onClick={() => onDismiss(t.id)} aria-label={t("closeNotice", "Đóng thông báo")}>
             ✕
           </button>
         </div>
@@ -118,16 +121,17 @@ export function ToastStack({ toasts, onDismiss }) {
 
 // --- Hộp xác nhận thay cho window.confirm ---
 export function ConfirmDialog({ open, title, message, confirmLabel = "Xóa", onConfirm, onCancel }) {
+  const { t } = useI18n();
   if (!open) return null;
   return (
     <Modal title={title} onClose={onCancel} width={380}>
       <p className="confirm-message">{message}</p>
       <div className="modal-actions">
         <button className="btn btn-ghost" onClick={onCancel}>
-          Hủy
+          {t("cancel", "Hủy")}
         </button>
         <button className="btn btn-danger" onClick={onConfirm}>
-          {confirmLabel}
+          {confirmLabel === "Xóa" ? t("delete", "Xóa") : confirmLabel}
         </button>
       </div>
     </Modal>

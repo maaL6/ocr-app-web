@@ -34,6 +34,7 @@ import AuthModal from "./components/AuthModal.jsx";
 import HistoryPanel from "./components/HistoryPanel.jsx";
 import ViewerPanel from "./components/ViewerPanel.jsx";
 import ProofPanel from "./components/ProofPanel.jsx";
+import { I18nContext, makeTranslator } from "./i18n.jsx";
 
 const DEFAULT_PARAMS = {
   preprocess: true,
@@ -54,11 +55,18 @@ function initTheme() {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function initLanguage() {
+  const saved = localStorage.getItem("language");
+  return saved === "en" || saved === "vi" ? saved : "vi";
+}
+
 let toastSeq = 0;
 
 export default function App() {
   // --- Giao diện chung ---
   const [theme, setTheme] = useState(initTheme);
+  const [language, setLanguage] = useState(initLanguage);
+  const t = makeTranslator(language);
   const [activeTab, setActiveTab] = useState("ocr");
   const [toasts, setToasts] = useState([]);
   const [confirmState, setConfirmState] = useState(null); // {title,message,onConfirm}
@@ -133,6 +141,12 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    localStorage.setItem("language", language);
+    document.documentElement.lang = language;
+    document.title = t("appTitle", "Mộc Bản OCR — Số hóa di sản Hán–Nôm");
+  }, [language]);
+
+  useEffect(() => {
     localStorage.setItem("useAI", useAI ? "1" : "0");
   }, [useAI]);
 
@@ -182,7 +196,7 @@ export default function App() {
     setUser(j.user);
     setAuthModalOpen(false);
     setAuthError(null);
-    pushToast("success", `Chào ${j.user?.fullname || "bạn"}!`);
+    pushToast("success", `${t("welcome", "Chào")} ${j.user?.fullname || (language === "en" ? "there" : "bạn")}!`);
   };
 
   const handleAuthSubmit = async (form) => {
@@ -192,7 +206,7 @@ export default function App() {
         applyLoginResponse(await postLogin(apiBase, form.email, form.password));
       } else {
         await postRegister(apiBase, form);
-        pushToast("success", "Đăng ký thành công", "Hãy đăng nhập bằng tài khoản mới.");
+        pushToast("success", t("registerSuccess", "Đăng ký thành công"), t("registerSuccessSub", "Hãy đăng nhập bằng tài khoản mới."));
         setAuthMode("login");
       }
     } catch (e) {
@@ -217,7 +231,7 @@ export default function App() {
   const handleUnauthorized = (e) => {
     if (!e?.unauthorized) return false;
     handleLogout();
-    pushToast("error", "Phiên đăng nhập hết hạn", "Vui lòng đăng nhập lại.");
+    pushToast("error", t("sessionExpired", "Phiên đăng nhập hết hạn"), t("loginAgain", "Vui lòng đăng nhập lại."));
     return true;
   };
 
@@ -230,7 +244,7 @@ export default function App() {
     } catch (e) {
       if (e.unauthorized) {
         handleLogout();
-        pushToast("error", "Phiên đăng nhập hết hạn", "Vui lòng đăng nhập lại.");
+        pushToast("error", t("sessionExpired", "Phiên đăng nhập hết hạn"), t("loginAgain", "Vui lòng đăng nhập lại."));
       } else {
         console.error(e);
       }
@@ -267,7 +281,7 @@ export default function App() {
         return;
       }
       if (!originalUrl) {
-        pushToast("warn", "Không tải được ảnh gốc", "Vẫn hiển thị văn bản đã lưu.");
+        pushToast("warn", t("imageFailed", "Không tải được ảnh gốc"), t("imageFailedSub", "Vẫn hiển thị văn bản đã lưu."));
       }
 
       setSelectedDocId(doc.id);
@@ -276,7 +290,7 @@ export default function App() {
         if (prev) URL.revokeObjectURL(prev);
         return originalUrl;
       });
-      setFile({ name: doc.title || "Tài liệu lưu trữ", saved: true });
+      setFile({ name: doc.title || t("savedDocument", "Tài liệu lưu trữ"), saved: true });
 
       const normalized = normalizeRaw(doc.ocr_result || {});
       normalized.ocr_image = ocrUrl;
@@ -288,7 +302,7 @@ export default function App() {
       setActiveTab("ocr");
     } catch (e) {
       if (!stale() && !handleUnauthorized(e)) {
-        pushToast("error", "Không mở được tài liệu", e.message);
+        pushToast("error", t("openFailed", "Không mở được tài liệu"), e.message);
       }
     } finally {
       if (!stale()) setPhase(null);
@@ -297,8 +311,8 @@ export default function App() {
 
   const requestDeleteDoc = (doc) => {
     setConfirmState({
-      title: "Xóa tài liệu",
-      message: `Xóa vĩnh viễn “${doc.title || `Tài liệu #${doc.id}`}” khỏi tài khoản?`,
+      title: t("confirmDelete", "Xóa tài liệu"),
+      message: t("confirmDeleteText", `Xóa vĩnh viễn “{title}” khỏi tài khoản?`, { title: doc.title || `${t("document", "Tài liệu")} #${doc.id}` }),
       onConfirm: async () => {
         setConfirmState(null);
         try {
@@ -313,10 +327,10 @@ export default function App() {
               return null;
             });
           }
-          pushToast("success", "Đã xóa tài liệu");
+          pushToast("success", t("deleted", "Đã xóa tài liệu"));
           loadHistory();
         } catch (e) {
-          if (!handleUnauthorized(e)) pushToast("error", "Không xóa được", e.message);
+          if (!handleUnauthorized(e)) pushToast("error", t("deleteFailed", "Không xóa được"), e.message);
         }
       },
     });
@@ -331,7 +345,7 @@ export default function App() {
     }
     if (!f) return;
     if (!f.type?.startsWith("image/")) {
-      pushToast("error", "Tệp không hợp lệ", "Vui lòng chọn tệp hình ảnh.");
+      pushToast("error", t("invalidFile", "Tệp không hợp lệ"), t("chooseImageFile", "Vui lòng chọn tệp hình ảnh."));
       return;
     }
     runSeqRef.current += 1; // hủy hiệu lực mọi chuỗi OCR đang chạy
@@ -437,20 +451,20 @@ export default function App() {
             merged.ai = { requested: true, applied: false, fallback: true };
             pushToast(
               "warn",
-              "SikuBERT chưa sẵn sàng",
-              "Máy chủ trả về kết quả OCR gốc (mô hình hậu xử lý chưa nạp)."
+              t("aiUnavailable", "SikuBERT chưa sẵn sàng"),
+              t("aiUnavailableSub", "Máy chủ trả về kết quả OCR gốc (mô hình hậu xử lý chưa nạp).")
             );
           } else {
             merged = mergeAI(raw, pp);
             if (merged.ai.changedCount === 0) {
-              pushToast("info", "SikuBERT không tìm thấy lỗi cần sửa");
+              pushToast("info", t("aiNoErrors", "SikuBERT không tìm thấy lỗi cần sửa"));
             }
           }
         } catch (e) {
           if (stale()) return;
           merged = normalizeRaw(raw);
           merged.ai = { requested: true, applied: false, fallback: true };
-          pushToast("warn", "Hiệu đính AI thất bại", e.message);
+          pushToast("warn", t("aiFailed", "Hiệu đính AI thất bại"), e.message);
         }
       } else {
         merged = normalizeRaw(raw);
@@ -552,10 +566,10 @@ export default function App() {
       const j = await createDocument(apiBase, token, fd);
       setSaveModalOpen(false);
       setSelectedDocId(j.id);
-      pushToast("success", "Đã lưu tài liệu", saveTitle || file.name);
+      pushToast("success", t("saved", "Đã lưu tài liệu"), saveTitle || file.name);
       loadHistory();
     } catch (e2) {
-      if (!handleUnauthorized(e2)) pushToast("error", "Không lưu được", e2.message);
+      if (!handleUnauthorized(e2)) pushToast("error", t("saveFailed", "Không lưu được"), e2.message);
     } finally {
       setSavingDoc(false);
     }
@@ -568,10 +582,10 @@ export default function App() {
         title: saveTitle || undefined,
         ocr_result: toPlainResult(result),
       });
-      pushToast("success", "Đã cập nhật thay đổi");
+      pushToast("success", t("updated", "Đã cập nhật thay đổi"));
       loadHistory();
     } catch (e) {
-      if (!handleUnauthorized(e)) pushToast("error", "Cập nhật thất bại", e.message);
+      if (!handleUnauthorized(e)) pushToast("error", t("updateFailed", "Cập nhật thất bại"), e.message);
     }
   };
 
@@ -582,14 +596,15 @@ export default function App() {
   const stats = resultStats(result);
   const pm = preResult?.meta || result?.preprocess;
   const metaCaption = pm?.applied
-    ? [pm.stage, pm.skew_angle != null && `góc ${pm.skew_angle}°`].filter(Boolean).join(" · ")
+    ? [pm.stage, pm.skew_angle != null && `${t("angle", "góc")} ${pm.skew_angle}°`].filter(Boolean).join(" · ")
     : view === "original"
-    ? "ảnh gốc"
+    ? t("originalImage", "ảnh gốc")
     : null;
   const exportBaseName = saveTitle || file?.name || "ket-qua-ocr";
   const loading = phase != null;
 
   return (
+    <I18nContext.Provider value={{ language, t }}>
     <div className="wrap">
       {/* inert khi chưa đăng nhập: loại nội dung sau màn khóa khỏi tab order,
           click và accessibility tree (không chỉ che mờ bằng CSS). */}
@@ -599,6 +614,8 @@ export default function App() {
         onTab={setActiveTab}
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        language={language}
+        onToggleLanguage={() => setLanguage(language === "vi" ? "en" : "vi")}
         health={health}
         onOpenSettings={() => setSettingsOpen(true)}
         user={user}
@@ -638,18 +655,18 @@ export default function App() {
                 <span className="file-chip-dot" />
                 <button
                   className="file-chip-name"
-                  title="Chọn ảnh khác"
+                  title={t("chooseAnother", "Chọn ảnh khác")}
                   onClick={() => onPickFile(undefined, true)}
                 >
                   {file.name}
                 </button>
-                <button className="file-chip-x" onClick={clearFile} aria-label="Bỏ ảnh">
+                <button className="file-chip-x" onClick={clearFile} aria-label={t("removeImage", "Bỏ ảnh")}>
                   ✕
                 </button>
               </div>
             ) : (
               <button className="btn btn-ghost" onClick={() => onPickFile(undefined, true)}>
-                ⊕ Chọn ảnh…
+                ⊕ {t("chooseImage", "Chọn ảnh…")}
               </button>
             )}
 
@@ -658,9 +675,9 @@ export default function App() {
                 className="btn btn-ghost"
                 onClick={runPreprocessOnly}
                 disabled={!file || loading}
-                title="Chỉ chạy tiền xử lý để xem trước ảnh"
+                title={t("preprocessTitle", "Chỉ chạy tiền xử lý để xem trước ảnh")}
               >
-                Tiền xử lý
+                {t("preprocess", "Tiền xử lý")}
               </button>
             )}
             <button
@@ -668,24 +685,24 @@ export default function App() {
               onClick={runOcr}
               disabled={!file || file.saved || loading}
             >
-              {loading && phase !== "pre" ? <Spinner size={14} /> : "🔍"} Chạy OCR
+              {loading && phase !== "pre" ? <Spinner size={14} /> : "🔍"} {t("runOcr", "Chạy OCR")}
             </button>
 
             <button
               className={`ai-toggle ${useAI ? "on" : ""}`}
               onClick={() => setUseAI(!useAI)}
               disabled={loading}
-              title="Sau khi OCR, dùng SikuBERT sửa lỗi chính tả Hán–Nôm (chạy lâu hơn ~2 lần)"
+              title={t("aiProofTitle", "Sau khi OCR, dùng SikuBERT sửa lỗi chính tả Hán–Nôm (chạy lâu hơn ~2 lần)")}
               aria-pressed={useAI}
             >
               <span className="ai-switch" />
-              Hiệu đính AI <span className="ai-tag">SikuBERT</span>
+              {t("aiProof", "Hiệu đính AI")} <span className="ai-tag">SikuBERT</span>
             </button>
 
             {token && result && (
               selectedDocId ? (
                 <button className="btn btn-outline" onClick={handleUpdateDoc} disabled={loading}>
-                  💾 Cập nhật
+                  💾 {t("update", "Cập nhật")}
                 </button>
               ) : (
                 !file?.saved && (
@@ -696,7 +713,7 @@ export default function App() {
                       setSaveModalOpen(true);
                     }}
                   >
-                    📥 Lưu vào tài khoản
+                    📥 {t("saveAccount", "Lưu vào tài khoản")}
                   </button>
                 )
               )
@@ -705,7 +722,7 @@ export default function App() {
             <div className="toolbar-spacer" />
             {stats && (
               <span className="toolbar-stats">
-                ⚡ {stats.nChars} chữ · {stats.nCols} cột
+                ⚡ {stats.nChars} {t("chars", "chữ")} · {stats.nCols} {t("columns", "cột")}
                 {elapsedMs != null && ` · ${(elapsedMs / 1000).toFixed(1)}s`}
               </span>
             )}
@@ -714,7 +731,7 @@ export default function App() {
           {/* THAM SỐ NÂNG CAO */}
           <details className="advanced">
             <summary>
-              <span className="advanced-chev">▶</span> Tùy chỉnh tiền xử lý nâng cao
+              <span className="advanced-chev">▶</span> {t("advanced", "Tùy chỉnh tiền xử lý nâng cao")}
               <label
                 className="chk-label advanced-enable"
                 onClick={(e) => e.stopPropagation()}
@@ -724,12 +741,12 @@ export default function App() {
                   checked={params.preprocess}
                   onChange={(e) => setParam("preprocess", e.target.checked)}
                 />
-                Bật tiền xử lý
+                {t("enablePreprocess", "Bật tiền xử lý")}
               </label>
             </summary>
             <div className={`params-grid ${params.preprocess ? "" : "disabled"}`}>
               <div className="field">
-                <span className="field-label">Stage đầu vào OCR</span>
+                <span className="field-label">{t("inputStage", "Stage đầu vào OCR")}</span>
                 <select value={params.stage} onChange={(e) => setParam("stage", e.target.value)}>
                   {serverOpts.stages.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -737,7 +754,7 @@ export default function App() {
                 </select>
               </div>
               <div className="field">
-                <span className="field-label">Lật ảnh (flip)</span>
+                <span className="field-label">{t("flip", "Lật ảnh (flip)")}</span>
                 <select value={params.flip} onChange={(e) => setParam("flip", e.target.value)}>
                   {serverOpts.flip_directions.map((s) => (
                     <option key={s} value={s}>{s}</option>
@@ -745,7 +762,7 @@ export default function App() {
                 </select>
               </div>
               <div className="field">
-                <span className="field-label">Khử nhiễu</span>
+                <span className="field-label">{t("denoise", "Khử nhiễu")}</span>
                 <select
                   value={params.noise_method}
                   onChange={(e) => setParam("noise_method", e.target.value)}
@@ -756,7 +773,7 @@ export default function App() {
                 </select>
               </div>
               <div className="field">
-                <span className="field-label">Chiều rộng resize</span>
+                <span className="field-label">{t("resizeWidth", "Chiều rộng resize")}</span>
                 <input
                   type="number"
                   step="100"
@@ -787,7 +804,7 @@ export default function App() {
                 />
               </div>
               <div className="field">
-                <span className="field-label">Khử nghiêng (±°)</span>
+                <span className="field-label">{t("deskew", "Khử nghiêng (±°)")}</span>
                 <input
                   type="number"
                   step="0.5"
@@ -819,12 +836,11 @@ export default function App() {
                 />
               </div>
               <button className="btn btn-ghost" onClick={() => setParams(DEFAULT_PARAMS)}>
-                Về mặc định
+                {t("defaults", "Về mặc định")}
               </button>
               <p className="advanced-hint">
-                🪵 <b>Vì sao mặc định lật ngang?</b> Ảnh chụp trực tiếp ván khắc có chữ ngược —
-                lật ngang trả chữ về chiều đọc đúng. Nếu OCR bản in trên giấy, chọn flip{" "}
-                <b>none</b>.
+                🪵 <b>{t("flipWhyTitle", "Vì sao mặc định lật ngang?")}</b>{" "}
+                {t("flipWhy", "Ảnh chụp trực tiếp ván khắc có chữ ngược — lật ngang trả chữ về chiều đọc đúng. Nếu OCR bản in trên giấy, chọn flip none.")}
               </p>
             </div>
           </details>
@@ -859,12 +875,12 @@ export default function App() {
               className="splitter"
               role="separator"
               aria-orientation="vertical"
-              aria-label="Kéo để chỉnh kích thước hai bảng"
+              aria-label={t("splitLabel", "Kéo để chỉnh kích thước hai bảng")}
               aria-valuenow={Math.round(split)}
               aria-valuemin={25}
               aria-valuemax={75}
               tabIndex={0}
-              title="Kéo để chỉnh kích thước · nhấp đúp để đặt lại"
+              title={t("splitTitle", "Kéo để chỉnh kích thước · nhấp đúp để đặt lại")}
               onPointerDown={onSplitterDown}
               onDoubleClick={resetSplit}
               onKeyDown={(e) => {
@@ -924,17 +940,17 @@ export default function App() {
       )}
 
       {saveModalOpen && (
-        <Modal title="Lưu kết quả OCR" onClose={() => setSaveModalOpen(false)}>
+        <Modal title={t("saveResult", "Lưu kết quả OCR")} onClose={() => setSaveModalOpen(false)}>
           <form className="modal-form" onSubmit={handleSaveNewDoc}>
             <div className="form-group">
-              <label htmlFor="save-title">Tiêu đề tài liệu</label>
+              <label htmlFor="save-title">{t("documentTitle", "Tiêu đề tài liệu")}</label>
               <input
                 id="save-title"
                 type="text"
                 value={saveTitle}
                 onChange={(e) => setSaveTitle(e.target.value)}
                 required
-                placeholder="Ví dụ: Ván khắc trang 3"
+                placeholder={t("titleExample", "Ví dụ: Ván khắc trang 3")}
                 autoFocus
               />
             </div>
@@ -944,10 +960,10 @@ export default function App() {
                 className="btn btn-ghost"
                 onClick={() => setSaveModalOpen(false)}
               >
-                Hủy
+                {t("cancel", "Hủy")}
               </button>
               <button type="submit" className="btn btn-primary" disabled={savingDoc}>
-                {savingDoc ? "Đang lưu…" : "Lưu vào máy chủ"}
+                {savingDoc ? t("saving", "Đang lưu…") : t("saveServer", "Lưu vào máy chủ")}
               </button>
             </div>
           </form>
@@ -970,9 +986,9 @@ export default function App() {
           <div className="lock-card">
             <div className="seal-logo lock-logo">木</div>
             <h2 className="lock-title">Mộc Bản OCR</h2>
-            <span className="lock-subtitle">Hệ thống số hóa di sản chữ Hán–Nôm</span>
+            <span className="lock-subtitle">{t("lockSubtitle", "Hệ thống số hóa di sản chữ Hán–Nôm")}</span>
             <p className="lock-text">
-              Vui lòng{" "}
+              {t("lockPrefix", "Vui lòng")}{" "}
               <button
                 className="link-btn"
                 autoFocus
@@ -981,9 +997,9 @@ export default function App() {
                   setAuthModalOpen(true);
                 }}
               >
-                đăng nhập
+                {t("login", "đăng nhập").toLowerCase()}
               </button>{" "}
-              hoặc{" "}
+              {t("lockOr", "hoặc")}{" "}
               <button
                 className="link-btn"
                 onClick={() => {
@@ -991,13 +1007,14 @@ export default function App() {
                   setAuthModalOpen(true);
                 }}
               >
-                đăng ký
+                {t("register", "đăng ký")}
               </button>{" "}
-              để sử dụng dịch vụ.
+              {t("lockSuffix", "để sử dụng dịch vụ.")}
             </p>
           </div>
         </div>
       )}
     </div>
+    </I18nContext.Provider>
   );
 }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "../ui.jsx";
+import { useI18n } from "../i18n.jsx";
 
 const GOOGLE_CLIENT_ID =
   "316323533715-u77bsr5qbo7p6b42g161cvcvlojfqbm9.apps.googleusercontent.com";
 
 export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogleCredential, onClose }) {
+  const { t, language } = useI18n();
   const [form, setForm] = useState({ email: "", password: "", fullname: "", phone_number: "" });
   const [submitting, setSubmitting] = useState(false);
   // Giữ callback mới nhất trong ref để effect init Google không phải chạy lại
@@ -38,21 +40,21 @@ export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogl
         // GSI render iframe rộng cố định — đo container để không bị cắt trên
         // màn hình hẹp (GSI chấp nhận 200–400px).
         const width = Math.max(200, Math.min(360, slot.offsetWidth || 360));
-        window.google.accounts.id.renderButton(slot, { theme: "outline", size: "large", width });
+        window.google.accounts.id.renderButton(slot, { theme: "outline", size: "large", width, locale: language });
       }
     } catch (e) {
       console.error("Lỗi Google Init:", e);
     }
-  }, [mode]);
+  }, [mode, language]);
 
   return (
-    <Modal title={mode === "login" ? "Đăng nhập" : "Tạo tài khoản"} onClose={onClose}>
+    <Modal title={mode === "login" ? t("login", "Đăng nhập") : t("createAccount", "Tạo tài khoản")} onClose={onClose}>
       {error && <div className="error-banner">{error}</div>}
       <form className="modal-form" onSubmit={submit}>
         {mode === "register" && (
           <>
             <div className="form-group">
-              <label htmlFor="auth-fullname">Họ và tên</label>
+              <label htmlFor="auth-fullname">{t("fullName", "Họ và tên")}</label>
               <input
                 id="auth-fullname"
                 type="text"
@@ -60,24 +62,24 @@ export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogl
                 value={form.fullname}
                 onChange={setField}
                 required
-                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholder={t("fullNameExample", "Ví dụ: Nguyễn Văn A")}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="auth-phone">Số điện thoại</label>
+              <label htmlFor="auth-phone">{t("phone", "Số điện thoại")}</label>
               <input
                 id="auth-phone"
                 type="tel"
                 name="phone_number"
                 value={form.phone_number}
                 onChange={setField}
-                placeholder="Không bắt buộc"
+                placeholder={t("optional", "Không bắt buộc")}
               />
             </div>
           </>
         )}
         <div className="form-group">
-          <label htmlFor="auth-email">Địa chỉ email</label>
+          <label htmlFor="auth-email">{t("email", "Địa chỉ email")}</label>
           <input
             id="auth-email"
             type="email"
@@ -89,7 +91,7 @@ export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogl
           />
         </div>
         <div className="form-group">
-          <label htmlFor="auth-password">Mật khẩu</label>
+          <label htmlFor="auth-password">{t("password", "Mật khẩu")}</label>
           <input
             id="auth-password"
             type="password"
@@ -101,14 +103,14 @@ export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogl
           />
         </div>
         <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-          {submitting ? "Đang xử lý…" : mode === "login" ? "Đăng nhập" : "Đăng ký tài khoản"}
+          {submitting ? t("processing", "Đang xử lý…") : mode === "login" ? t("login", "Đăng nhập") : t("registerAccount", "Đăng ký tài khoản")}
         </button>
       </form>
 
       {mode === "login" && (
         <>
           <div className="auth-divider">
-            <span>Hoặc đăng nhập bằng</span>
+            <span>{t("orGoogle", "Hoặc đăng nhập bằng")}</span>
           </div>
           <div id="googleBtn" className="google-btn-slot" />
         </>
@@ -117,16 +119,16 @@ export default function AuthModal({ mode, onSwitchMode, error, onSubmit, onGoogl
       <div className="modal-footer-text">
         {mode === "login" ? (
           <>
-            Chưa có tài khoản?{" "}
+            {t("noAccount", "Chưa có tài khoản?")}{" "}
             <button type="button" className="link-btn" onClick={() => onSwitchMode("register")}>
-              Đăng ký ngay
+              {t("registerNow", "Đăng ký ngay")}
             </button>
           </>
         ) : (
           <>
-            Đã có tài khoản?{" "}
+            {t("haveAccount", "Đã có tài khoản?")}{" "}
             <button type="button" className="link-btn" onClick={() => onSwitchMode("login")}>
-              Đăng nhập
+              {t("login", "Đăng nhập")}
             </button>
           </>
         )}

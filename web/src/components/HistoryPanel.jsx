@@ -1,18 +1,19 @@
 import { Spinner } from "../ui.jsx";
+import { useI18n } from "../i18n.jsx";
 
 export default function HistoryPanel({ docs, loading, selectedDocId, onOpen, onDelete }) {
+  const { t, language } = useI18n();
   return (
     <div className="card history-card">
-      <h2 className="card-title">Lịch sử quét tài liệu</h2>
+      <h2 className="card-title">{t("historyTitle", "Lịch sử quét tài liệu")}</h2>
 
       {loading ? (
         <div className="loading-indicator">
-          <Spinner /> Đang tải lịch sử…
+          <Spinner /> {t("loadingHistory", "Đang tải lịch sử…")}
         </div>
       ) : docs.length === 0 ? (
         <p className="empty-state">
-          Chưa có tài liệu nào được lưu. Chạy OCR ở tab <b>Nhận dạng</b> rồi chọn{" "}
-          <b>Lưu vào tài khoản</b>.
+          {t("noHistory", "Chưa có tài liệu nào được lưu. Chạy OCR ở tab Nhận dạng rồi chọn Lưu vào tài khoản.")}
         </p>
       ) : (
         <div className="list-group">
@@ -24,18 +25,18 @@ export default function HistoryPanel({ docs, loading, selectedDocId, onOpen, onD
               <button
                 className="item-info"
                 onClick={() => onOpen(doc.id)}
-                aria-label={`Mở ${doc.title || `tài liệu #${doc.id}`}`}
+                aria-label={`${t("open", "Mở")} ${doc.title || `${t("document", "Tài liệu")} #${doc.id}`}`}
               >
-                <span className="item-title">{doc.title || `Tài liệu #${doc.id}`}</span>
-                <span className="item-snippet cjk">{doc.full_text || "(Trống)"}</span>
+                <span className="item-title">{doc.title || `${t("document", "Tài liệu")} #${doc.id}`}</span>
+                <span className="item-snippet cjk">{doc.full_text || `(${t("empty", "Trống")})`}</span>
                 <span className="item-meta">
-                  {new Date(doc.created_at).toLocaleString("vi-VN")}
+                  {new Date(doc.created_at).toLocaleString(language === "en" ? "en-GB" : "vi-VN")}
                 </span>
               </button>
               <button
                 className="icon-btn icon-btn-danger"
-                title="Xóa tài liệu"
-                aria-label={`Xóa ${doc.title || `tài liệu #${doc.id}`}`}
+                title={t("deleteDocument", "Xóa tài liệu")}
+                aria-label={`${t("delete", "Xóa")} ${doc.title || `${t("document", "tài liệu")} #${doc.id}`}`}
                 onClick={() => onDelete(doc)}
               >
                 🗑

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Segmented, Spinner } from "../ui.jsx";
 import { heatLevel } from "../ocr.js";
+import { useI18n } from "../i18n.jsx";
 
 const ZOOM_STEPS = [0.15, 0.25, 0.35, 0.5, 0.65, 0.8, 1, 1.25, 1.5, 2, 3];
 
@@ -22,12 +23,6 @@ function polyArea(poly) {
   return Math.abs(s / 2);
 }
 
-const PHASE_LABEL = {
-  pre: "Đang tiền xử lý ảnh…",
-  ocr: "Đang nhận dạng chữ Hán…",
-  ai: "Đang hiệu đính bằng SikuBERT…",
-};
-
 export default function ViewerPanel({
   displaySrc,
   results, // dòng OCR (để vẽ bbox) — chỉ khi đang xem ảnh OCR
@@ -46,6 +41,12 @@ export default function ViewerPanel({
   onPickFile,
   aiApplied,
 }) {
+  const { t } = useI18n();
+  const phaseLabel = {
+    pre: t("preprocessingImage", "Đang tiền xử lý ảnh…"),
+    ocr: t("recognizing", "Đang nhận dạng chữ Hán…"),
+    ai: t("aiCorrecting", "Đang hiệu đính bằng SikuBERT…"),
+  };
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
   const stageRef = useRef(null);
@@ -222,7 +223,7 @@ export default function ViewerPanel({
   return (
     <section className="panel viewer-panel">
       <div className="panel-head">
-        <h2>Ảnh ván khắc</h2>
+        <h2>{t("woodblockImage", "Ảnh ván khắc")}</h2>
         {metaCaption && <span className="panel-caption">{metaCaption}</span>}
         <div className="panel-head-spacer" />
         {hasProcessed && (
@@ -231,25 +232,25 @@ export default function ViewerPanel({
             value={view}
             onChange={onView}
             options={[
-              { value: "processed", label: "Đã xử lý" },
-              { value: "original", label: "Ảnh gốc" },
+              { value: "processed", label: t("processed", "Đã xử lý") },
+              { value: "original", label: t("originalImage", "Ảnh gốc") },
             ]}
           />
         )}
         <div className="viewer-tools">
           <div className="zoom-control">
-            <button onClick={() => zoomBy(-1)} aria-label="Thu nhỏ" disabled={!displaySrc}>
+            <button onClick={() => zoomBy(-1)} aria-label={t("zoomOut", "Thu nhỏ")} disabled={!displaySrc}>
               −
             </button>
             <button
               className="zoom-level"
               onClick={() => setZoom(zoom === "fit" ? 1 : "fit")}
-              title={zoom === "fit" ? "Xem kích thước thật (100%)" : "Vừa khung"}
+              title={zoom === "fit" ? t("actualSize", "Xem kích thước thật (100%)") : t("fit", "Vừa khung")}
               disabled={!displaySrc}
             >
               {zoom === "fit" ? `${Math.round(fitScale * 100)}%` : `${Math.round(scale * 100)}%`}
             </button>
-            <button onClick={() => zoomBy(1)} aria-label="Phóng to" disabled={!displaySrc}>
+            <button onClick={() => zoomBy(1)} aria-label={t("zoomIn", "Phóng to")} disabled={!displaySrc}>
               +
             </button>
           </div>
@@ -257,7 +258,7 @@ export default function ViewerPanel({
             <button
               className={`icon-btn ${showBoxes ? "icon-btn-on" : ""}`}
               onClick={onToggleBoxes}
-              title={showBoxes ? "Ẩn khung chữ" : "Hiện khung chữ"}
+              title={showBoxes ? t("hideBoxes", "Ẩn khung chữ") : t("showBoxes", "Hiện khung chữ")}
               aria-pressed={showBoxes}
             >
               ▣
@@ -298,21 +299,21 @@ export default function ViewerPanel({
         ) : (
           <button className="stage-empty" onClick={() => onPickFile(undefined, true)}>
             <span className="stage-empty-icon">🪵</span>
-            <span className="stage-empty-title">Kéo–thả ảnh ván khắc vào đây</span>
-            <span className="stage-empty-sub">hoặc bấm để chọn tệp ảnh</span>
+            <span className="stage-empty-title">{t("dropTitle", "Kéo–thả ảnh ván khắc vào đây")}</span>
+            <span className="stage-empty-sub">{t("dropSub", "hoặc bấm để chọn tệp ảnh")}</span>
           </button>
         )}
 
         {phase && (
           <div className="stage-loading">
             <Spinner size={26} />
-            <span>{PHASE_LABEL[phase] || "Đang xử lý…"}</span>
+            <span>{phaseLabel[phase] || t("processingImage", "Đang xử lý…")}</span>
           </div>
         )}
       </div>
 
       <div className="viewer-legend">
-        <span className="legend-label">Khung dòng:</span>
+        <span className="legend-label">{t("lineBoxes", "Khung dòng:")}</span>
         <span className="legend-item">
           <span className="legend-swatch heat-swatch-hi" /> ≥ 85%
         </span>
@@ -320,14 +321,14 @@ export default function ViewerPanel({
           <span className="legend-swatch heat-swatch-mid" /> 60–85%
         </span>
         <span className="legend-item">
-          <span className="legend-swatch heat-swatch-low" /> Dưới 60%
+          <span className="legend-swatch heat-swatch-low" /> {t("below60", "Dưới 60%")}
         </span>
         <span className="legend-item">
-          <span className="legend-swatch legend-swatch-char" /> Ký tự &lt; 60%
+          <span className="legend-swatch legend-swatch-char" /> {t("charBelow60", "Ký tự < 60%")}
         </span>
         {aiApplied && (
           <span className="legend-item">
-            <span className="legend-swatch legend-swatch-ai" /> AI đã sửa
+            <span className="legend-swatch legend-swatch-ai" /> {t("aiFixed", "AI đã sửa")}
           </span>
         )}
       </div>

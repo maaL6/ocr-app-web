@@ -8,6 +8,7 @@ import {
   safeFilename,
   toPlainResult,
 } from "../ocr.js";
+import { useI18n } from "../i18n.jsx";
 
 function pct(p) {
   if (p == null) return "—";
@@ -17,6 +18,7 @@ function pct(p) {
 
 /** Một ký tự trong bảng hiệu đính. */
 function GlyphSpan({ g, recIdx, glyphIdx, aiView, hovered, selected, setHovered, setSelected }) {
+  const { t } = useI18n();
   const isRaw = aiView === "raw";
   const ch = isRaw ? g.rawCh : g.ch;
   const conf = isRaw ? g.rawConf : g.conf;
@@ -38,12 +40,12 @@ function GlyphSpan({ g, recIdx, glyphIdx, aiView, hovered, selected, setHovered,
     .join(" ");
 
   const title = isRaw
-    ? `Bản gốc OCR · ${pct(conf)}`
+    ? `${t("originalOcr", "Bản gốc OCR")} · ${pct(conf)}`
     : [
-        `Độ tin cậy: ${pct(conf)}`,
-        aiChanged && `AI sửa: ${g.rawCh} → ${g.aiCh}`,
-        userEdited && "Đã sửa tay",
-        "Bấm để hiệu đính",
+        `${t("confidence", "Độ tin cậy")}: ${pct(conf)}`,
+        aiChanged && `${t("aiFixed", "AI sửa")}: ${g.rawCh} → ${g.aiCh}`,
+        userEdited && t("manuallyEdited", "Đã sửa tay"),
+        t("clickCorrect", "Bấm để hiệu đính"),
       ]
         .filter(Boolean)
         .join(" · ");
@@ -65,6 +67,7 @@ function GlyphSpan({ g, recIdx, glyphIdx, aiView, hovered, selected, setHovered,
 
 /** Popover chọn ký tự thay thế. */
 function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
+  const { t } = useI18n();
   const [manual, setManual] = useState("");
   const inputRef = useRef(null);
 
@@ -90,7 +93,7 @@ function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
     if (!items.some((it) => it.char === c.char)) items.push({ char: c.char, confidence: c.confidence });
   });
   if (!items.some((it) => it.char === g.rawCh)) {
-    items.push({ char: g.rawCh, confidence: g.rawConf, tag: aiChanged ? "OCR gốc" : undefined });
+    items.push({ char: g.rawCh, confidence: g.rawConf, tag: aiChanged ? t("originalOcr", "OCR gốc") : undefined });
   }
   const maxConf = Math.max(...items.map((it) => it.confidence ?? 0), 1e-9);
 
@@ -105,7 +108,7 @@ function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
         <span className="candidate-big cjk">{g.ch}</span>
         <div className="candidate-meta">
           <div>
-            Cột {rec.column} · vị trí {selected.glyphIdx + 1}/{rec.glyphs.length} · độ tin cậy{" "}
+            {t("column", "Cột")} {rec.column} · {selected.glyphIdx + 1}/{rec.glyphs.length} · {t("confidence", "độ tin cậy")}{" "}
             <b>{pct(g.conf)}</b>
           </div>
           {aiChanged && (
@@ -114,14 +117,14 @@ function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
               <b className="cjk">{g.aiCh}</b>
             </div>
           )}
-          {userEdited && <div className="candidate-user-note">Bạn đã sửa tay ký tự này.</div>}
+          {userEdited && <div className="candidate-user-note">{t("manuallyEdited", "Bạn đã sửa tay ký tự này.")}</div>}
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Đóng bảng gợi ý">
+        <button className="icon-btn" onClick={onClose} aria-label={t("close", "Đóng bảng gợi ý")}>
           ✕
         </button>
       </div>
 
-      <div className="candidate-list-label">Chọn chữ đúng</div>
+      <div className="candidate-list-label">{t("chooseCorrect", "Chọn chữ đúng")}</div>
       {items.length ? (
         <div className="candidate-list">
           {items.map((it) => (
@@ -142,7 +145,7 @@ function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
           ))}
         </div>
       ) : (
-        <p className="candidate-empty">Không có gợi ý cho ký tự này.</p>
+        <p className="candidate-empty">{t("noSuggestions", "Không có gợi ý cho ký tự này.")}</p>
       )}
 
       <div className="candidate-manual">
@@ -152,19 +155,19 @@ function CandidateBox({ result, selected, aiView, onApplyGlyph, onClose }) {
           value={manual}
           onChange={(e) => setManual(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && manual.trim() && apply(manual)}
-          placeholder="Nhập chữ khác…"
-          aria-label="Nhập ký tự thay thế"
+          placeholder={t("enterOther", "Nhập chữ khác…")}
+          aria-label={t("replacementChar", "Nhập ký tự thay thế")}
         />
         <button className="btn btn-primary btn-sm" disabled={!manual.trim()} onClick={() => apply(manual)}>
-          Áp dụng
+          {t("apply", "Áp dụng")}
         </button>
         {(userEdited || aiChanged) && (
           <button
             className="btn btn-ghost btn-sm"
-            title="Trả ký tự về đúng kết quả OCR ban đầu"
+            title={t("restoreOriginal", "Trả ký tự về đúng kết quả OCR ban đầu")}
             onClick={() => apply(g.rawCh)}
           >
-            Về bản gốc
+            {t("restoreOriginal", "Về bản gốc")}
           </button>
         )}
       </div>
@@ -187,6 +190,7 @@ export default function ProofPanel({
   exportBaseName,
   onToast,
 }) {
+  const { t } = useI18n();
   const [editingLine, setEditingLine] = useState(null);
   const [editText, setEditText] = useState("");
   const [editCol, setEditCol] = useState(1);
@@ -274,9 +278,9 @@ export default function ProofPanel({
   const copyFullText = async () => {
     try {
       await navigator.clipboard.writeText(displayedFullText);
-      onToast("success", "Đã sao chép toàn văn");
+      onToast("success", t("copied", "Đã sao chép toàn văn"));
     } catch {
-      onToast("error", "Không sao chép được", "Trình duyệt chặn quyền clipboard.");
+      onToast("error", t("copyFailed", "Không sao chép được"), t("clipboardBlocked", "Trình duyệt chặn quyền clipboard."));
     }
   };
 
@@ -296,13 +300,13 @@ export default function ProofPanel({
     return (
       <section className="panel proof-panel">
         <div className="panel-head">
-          <h2>Kết quả &amp; hiệu đính</h2>
+          <h2>{t("resultProof", "Kết quả & hiệu đính")}</h2>
         </div>
         <p className="empty-state">
           {result ? (
-            <>Không nhận dạng được chữ nào trong ảnh. Thử điều chỉnh tham số tiền xử lý.</>
+            <>{t("noRecognized", "Không nhận dạng được chữ nào trong ảnh. Thử điều chỉnh tham số tiền xử lý.")}</>
           ) : (
-            <>Chưa có dữ liệu nhận dạng. Tải ảnh lên và bấm <b>Chạy OCR</b>.</>
+            <>{t("noData", "Chưa có dữ liệu nhận dạng. Tải ảnh lên và bấm Chạy OCR.")}</>
           )}
         </p>
       </section>
@@ -312,11 +316,11 @@ export default function ProofPanel({
   return (
     <section className="panel proof-panel">
       <div className="panel-head">
-        <h2>Kết quả &amp; hiệu đính</h2>
-        <span className="panel-caption">({result.columns.length} cột)</span>
+        <h2>{t("resultProof", "Kết quả & hiệu đính")}</h2>
+        <span className="panel-caption">({result.columns.length} {t("columns", "cột")})</span>
         {aiApplied && (
-          <span className="ai-badge" title="Số ký tự SikuBERT đã thay so với OCR gốc">
-            SikuBERT sửa {aiChangedCount} chữ
+          <span className="ai-badge" title={t("aiChangedTitle", "Số ký tự SikuBERT đã thay so với OCR gốc")}>
+            {t("aiChangedCount", "SikuBERT sửa {count} chữ", { count: String(aiChangedCount) })}
           </span>
         )}
         <div className="panel-head-spacer" />
@@ -326,8 +330,8 @@ export default function ProofPanel({
             value={aiView}
             onChange={setAiView}
             options={[
-              { value: "raw", label: "Gốc OCR" },
-              { value: "final", label: "Đã sửa AI" },
+              { value: "raw", label: t("originalOcr", "Gốc OCR") },
+              { value: "final", label: t("aiCorrected", "Đã sửa AI") },
             ]}
           />
         )}
@@ -336,8 +340,8 @@ export default function ProofPanel({
           value={resultView}
           onChange={setResultView}
           options={[
-            { value: "columns", label: "Theo cột" },
-            { value: "list", label: "Danh sách" },
+            { value: "columns", label: t("byColumn", "Theo cột") },
+            { value: "list", label: t("list", "Danh sách") },
           ]}
         />
       </div>
@@ -382,7 +386,7 @@ export default function ProofPanel({
                 onMouseEnter={() => setHovered(recIdx)}
                 onMouseLeave={() => setHovered(null)}
               >
-                <span className="ocr-list-col-badge">Cột {rec.column}</span>
+                <span className="ocr-list-col-badge">{t("column", "Cột")} {rec.column}</span>
                 <span className="ocr-list-text">
                   {rec.glyphs.map((g, j) => (
                     <GlyphSpan
@@ -405,7 +409,7 @@ export default function ProofPanel({
                 )}
                 <button
                   className="icon-btn icon-btn-sm"
-                  title="Sửa cả dòng / chuyển cột"
+                  title={t("editLineTitle", "Sửa cả dòng / chuyển cột")}
                   onClick={() => startLineEdit(recIdx)}
                 >
                   ✎
@@ -417,29 +421,29 @@ export default function ProofPanel({
 
         {editingLine != null && (
           <div className="line-editor">
-            <div className="line-editor-head">Sửa dòng (cột {result.results[editingLine]?.column})</div>
+            <div className="line-editor-head">{t("editLine", "Sửa dòng")} ({t("column", "cột")} {result.results[editingLine]?.column})</div>
             <div className="line-editor-row">
               <input
                 className="cjk"
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
-                aria-label="Nội dung dòng"
+                aria-label={t("lineContent", "Nội dung dòng")}
               />
               <input
                 type="number"
                 min={1}
                 value={editCol}
                 onChange={(e) => setEditCol(e.target.value)}
-                title="Số cột"
-                aria-label="Số cột"
+                title={t("columnNumber", "Số cột")}
+                aria-label={t("columnNumber", "Số cột")}
               />
             </div>
             <div className="line-editor-actions">
               <button className="btn btn-ghost btn-sm" onClick={() => setEditingLine(null)}>
-                Hủy
+                {t("cancel", "Hủy")}
               </button>
               <button className="btn btn-primary btn-sm" onClick={saveLineEdit}>
-                Lưu dòng
+                {t("saveLine", "Lưu dòng")}
               </button>
             </div>
           </div>
@@ -457,23 +461,23 @@ export default function ProofPanel({
       <div className="fulltext">
         <div className="fulltext-head">
           <span className="fulltext-label">
-            Toàn văn {aiView === "raw" ? "(bản gốc OCR)" : ""}
+            {t("fullText", "Toàn văn")} {aiView === "raw" ? `(${t("originalOcr", "bản gốc OCR")})` : ""}
           </span>
           <div className="fulltext-actions">
             <button className="btn btn-ghost btn-sm" onClick={copyFullText}>
-              ⧉ Sao chép
+              ⧉ {t("copy", "Sao chép")}
             </button>
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => downloadText(safeFilename(exportBaseName, "txt"), result.full_text)}
-              title="Tải toàn văn (bản hiện tại) dạng .txt"
+              title={t("downloadTxt", "Tải toàn văn (bản hiện tại) dạng .txt")}
             >
               ↓ .txt
             </button>
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => downloadJson(safeFilename(exportBaseName, "json"), toPlainResult(result))}
-              title="Tải kết quả đầy đủ (dòng, cột, độ tin cậy) dạng .json"
+              title={t("downloadJson", "Tải kết quả đầy đủ (dòng, cột, độ tin cậy) dạng .json")}
             >
               ↓ .json
             </button>
@@ -490,7 +494,7 @@ export default function ProofPanel({
                     <span
                       key={`${recIdx}-${j}`}
                       className="fulltext-corr"
-                      title={`Gốc: ${g.rawCh}`}
+                      title={`${t("original", "Gốc")}: ${g.rawCh}`}
                       role="button"
                       tabIndex={0}
                       onClick={() => setSelected({ recIdx, glyphIdx: j })}

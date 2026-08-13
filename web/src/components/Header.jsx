@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n.jsx";
 
 export default function Header({
   activeTab,
   onTab,
   theme,
   onToggleTheme,
+  language,
+  onToggleLanguage,
   health,
   onOpenSettings,
   user,
   onOpenAuth,
   onLogout,
 }) {
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -37,20 +41,20 @@ export default function Header({
         <div className="seal-logo">木</div>
         <div className="brand-text">
           <h1 className="brand-title">Mộc Bản</h1>
-          <span className="brand-subtitle">Số hóa di sản Hán–Nôm</span>
+          <span className="brand-subtitle">{t("brandSubtitle", "Số hóa di sản Hán–Nôm")}</span>
         </div>
       </a>
 
-      <nav className="nav-links" aria-label="Điều hướng chính">
+      <nav className="nav-links" aria-label={t("mainNav", "Điều hướng chính")}>
         <button className={`nav-link ${activeTab === "ocr" ? "on" : ""}`} onClick={() => onTab("ocr")}>
-          Nhận dạng
+          {t("recognize", "Nhận dạng")}
         </button>
         {user && (
           <button
             className={`nav-link ${activeTab === "history" ? "on" : ""}`}
             onClick={() => onTab("history")}
           >
-            Lịch sử quét
+            {t("scanHistory", "Lịch sử quét")}
           </button>
         )}
       </nav>
@@ -61,23 +65,32 @@ export default function Header({
           href="https://drive.google.com/uc?export=download&id=1UASlxbXXzQ9jsxsAo_zL2qFHkvg0ouqG"
           target="_blank"
           rel="noopener noreferrer"
-          title="Tải ứng dụng di động Mộc Bản OCR (qua Google Drive)"
+          title={t("downloadAppTitle", "Tải ứng dụng di động Mộc Bản OCR (qua Google Drive)")}
         >
-          📱 Tải app
+          📱 {t("downloadApp", "Tải app")}
         </a>
+        <button
+          className="language-btn"
+          onClick={onToggleLanguage}
+          title={t("language", "Đổi ngôn ngữ")}
+          aria-label={t("language", "Đổi ngôn ngữ")}
+        >
+          <span aria-hidden="true">{language === "en" ? "🇬🇧" : "🇻🇳"}</span>
+          <span>{language === "en" ? "ENG" : "VIE"}</span>
+        </button>
         <button
           className="icon-btn"
           onClick={onToggleTheme}
-          title={theme === "dark" ? "Chuyển giao diện sáng" : "Chuyển giao diện tối"}
-          aria-label="Đổi giao diện sáng/tối"
+          title={theme === "dark" ? t("lightMode", "Chuyển giao diện sáng") : t("darkMode", "Chuyển giao diện tối")}
+          aria-label={t("themeLabel", "Đổi giao diện sáng/tối")}
         >
           ◐
         </button>
         <button
           className="icon-btn settings-btn"
           onClick={onOpenSettings}
-          title="Cài đặt máy chủ API"
-          aria-label="Cài đặt máy chủ API"
+          title={t("apiSettings", "Cài đặt máy chủ API")}
+          aria-label={t("apiSettings", "Cài đặt máy chủ API")}
         >
           ⚙
           <span className={`health-dot health-${health || "unknown"}`} />
@@ -87,7 +100,7 @@ export default function Header({
           <div className="user-menu" ref={menuRef}>
             <button className="user-btn" onClick={() => setMenuOpen(!menuOpen)}>
               <span className="user-avatar">{user.fullname?.charAt(0).toUpperCase() || "U"}</span>
-              <span className="user-name">{user.fullname?.split(" ").pop() || "Tài khoản"}</span>
+              <span className="user-name">{user.fullname?.split(" ").pop() || t("account", "Tài khoản")}</span>
               <span className="user-caret">▾</span>
             </button>
             {menuOpen && (
@@ -103,7 +116,7 @@ export default function Header({
                     setMenuOpen(false);
                   }}
                 >
-                  Lịch sử quét
+                  {t("scanHistory", "Lịch sử quét")}
                 </button>
                 <button
                   className="user-dropdown-item logout"
@@ -112,14 +125,14 @@ export default function Header({
                     onLogout();
                   }}
                 >
-                  Đăng xuất
+                  {t("logout", "Đăng xuất")}
                 </button>
               </div>
             )}
           </div>
         ) : (
           <button className="btn btn-primary" onClick={onOpenAuth}>
-            Đăng nhập
+            {t("login", "Đăng nhập")}
           </button>
         )}
       </div>

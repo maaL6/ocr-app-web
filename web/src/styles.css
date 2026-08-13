@@ -179,6 +179,27 @@ button {
   margin-left: auto;
 }
 
+.language-btn {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.language-btn:hover {
+  border-color: var(--seal);
+  color: var(--seal);
+}
+
 .icon-btn {
   width: 36px;
   height: 36px;
