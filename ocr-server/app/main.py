@@ -15,8 +15,8 @@ from app.layout import assign_columns
 from app.paddleocr_char_confidence_patch import apply_paddleocr_char_confidence_patch
 
 app = FastAPI(title="OCR Server - PP-OCRv6 (woodblock)")
-# All routers are served under the /api prefix to match the frontend
-# (frontend uses https://ocr.mocban.org/api/...)
+# Public and internal API routes use the same /api prefix. The reverse proxy
+# must preserve this prefix when forwarding requests to the service.
 app.include_router(auth_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
@@ -39,8 +39,8 @@ app.add_middleware(
 V6_DET_REC_KWARGS = dict(
     text_det_limit_side_len=2560,
     text_det_limit_type="max",
-    text_det_thresh=0.3,
-    text_det_box_thresh=0.6,
+    text_det_thresh=0.2,
+    text_det_box_thresh=0.4,
     text_det_unclip_ratio=1.5,
     text_rec_score_thresh=0.0,
     # Bật word/char boxes; per-character confidence được lấy từ decoder patch
@@ -101,12 +101,12 @@ except Exception as e:
     print(f"[WARN] Không thể nạp SikuBERT post-processor ({e}). Tính năng hậu xử lý sẽ ở chế độ fallback.")
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/options")
+@app.get("/api/options")
 def options():
     """Liệt kê các lựa chọn hợp lệ để web dựng UI điều khiển."""
     return {"stages": STAGES, "noise_methods": NOISE_METHODS, "flip_directions": FLIP_DIRECTIONS}
@@ -248,7 +248,7 @@ def _parse_chars_with_scores(text: str, rec_chars, rec_words=None, rec_word_boxe
     ]
 
 
-@app.post("/preprocess")
+@app.post("/api/preprocess")
 async def run_preprocess(
     file: UploadFile = File(...),
     stage: str = Form("flipped"),
@@ -283,7 +283,7 @@ async def run_preprocess(
     return {"image": _bgr_to_data_url(bgr), "preprocess": {"applied": True, **meta}}
 
 
-@app.post("/ocr")
+@app.post("/api/ocr")
 async def run_ocr(
     file: UploadFile = File(...),
     preprocess: bool = Form(True),
@@ -465,7 +465,7 @@ async def run_ocr(
     }
 
 
-@app.post("/ocr-postprocess")
+@app.post("/api/ocr-postprocess")
 async def run_ocr_postprocess(
     response: Response,
     file: UploadFile = File(...),

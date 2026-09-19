@@ -91,56 +91,18 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy các request API đến Backend FastAPI
-    location /auth/ {
-        proxy_pass http://127.0.0.1:8000/auth/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /documents/ {
-        proxy_pass http://127.0.0.1:8000/documents/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Tăng giới hạn upload file (ảnh mộc bản có độ phân giải cao thường rất nặng)
-        client_max_body_size 50M;
-    }
-
-    location /preprocess {
-        proxy_pass http://127.0.0.1:8000/preprocess;
+    # Giữ nguyên prefix /api khi chuyển tiếp đến FastAPI.
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         client_max_body_size 50M;
-    }
 
-    location /ocr {
-        proxy_pass http://127.0.0.1:8000/ocr;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        client_max_body_size 50M;
-        
         # Tăng thời gian chờ (timeout) cho các tác vụ OCR nặng
         proxy_read_timeout 300s;
         proxy_connect_timeout 300s;
-    }
-
-    location /health {
-        proxy_pass http://127.0.0.1:8000/health;
-        proxy_set_header Host $host;
-    }
-
-    location /options {
-        proxy_pass http://127.0.0.1:8000/options;
-        proxy_set_header Host $host;
     }
 
     # Bật nén Gzip để tải trang web nhanh hơn

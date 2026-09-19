@@ -485,7 +485,7 @@ def write_log(
         admin_id=admin_id,
         action=action,
         target=target,
-        metadata=metadata or {},
+        metadata_=metadata or {},
         ip_address=ip_address,
         user_agent=user_agent,
     )
@@ -539,5 +539,4 @@ def mark_notification_read(db: Session, notif_id: int, admin_id: int) -> dict | 
         "read": notif.read,
         "timestamp": notif.created_at.isoformat() if notif.created_at else "",
     }
-
 

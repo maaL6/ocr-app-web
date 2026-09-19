@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
@@ -27,7 +27,7 @@ class AdminLog(Base):
     admin_id = Column(Integer, ForeignKey("admins.id", ondelete="SET NULL"))
     action = Column(String(255), nullable=False)
     target = Column(Text, nullable=False)
-    metadata = Column(JSONB, default=dict, nullable=False)
+    metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
     ip_address = Column(String(45))
     user_agent = Column(Text)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -41,7 +41,7 @@ class AdminNotification(Base):
     message = Column(Text, nullable=False)
     type = Column(String(50), nullable=False)
     read = Column(Boolean, default=False, nullable=False)
-    metadata = Column(JSONB, default=dict, nullable=False)
+    metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 
