@@ -39,8 +39,8 @@ app.add_middleware(
 V6_DET_REC_KWARGS = dict(
     text_det_limit_side_len=2560,
     text_det_limit_type="max",
-    text_det_thresh=0.2,
-    text_det_box_thresh=0.4,
+    text_det_thresh=0.3,
+    text_det_box_thresh=0.6,
     text_det_unclip_ratio=1.5,
     text_rec_score_thresh=0.0,
     # Bật word/char boxes; per-character confidence được lấy từ decoder patch
