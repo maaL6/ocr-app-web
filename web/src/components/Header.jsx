@@ -69,6 +69,15 @@ export default function Header({
         >
           📱 {t("downloadApp", "Tải app")}
         </a>
+        <a
+          className="btn btn-ghost btn-app-download"
+          href="https://drive.google.com/file/d/1eCsuhGwWr6xxczfnEIH2yc5GPiydavcx"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t("instructionTitle", "Xem hướng dẫn sử dụng (qua Google Drive)")}
+        >
+          📖 {t("instruction", "Xem HDSD")}
+        </a>
         <button
           className="language-btn"
           onClick={onToggleLanguage}

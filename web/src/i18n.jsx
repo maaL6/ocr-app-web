@@ -4,6 +4,7 @@ export const EN = {
   brandSubtitle: "Digitizing Sino–Nom heritage",
   mainNav: "Main navigation", recognize: "Recognize", scanHistory: "Scan history",
   downloadApp: "Download app", downloadAppTitle: "Download the Mộc Bản OCR mobile app (via Google Drive)",
+  instruction: "User guide", instructionTitle: "Open the Mộc Bản OCR user guide (via Google Drive)",
   lightMode: "Switch to light mode", darkMode: "Switch to dark mode", themeLabel: "Toggle light/dark mode",
   apiSettings: "API server settings", account: "Account", logout: "Log out", login: "Log in",
   language: "Change language", english: "English", vietnamese: "Vietnamese",
